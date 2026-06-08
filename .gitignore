@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+dist/
+coverage/
+
+# Env
+.env
+.env.local
+
+# Storage
+storage/
+minio-data/
+postgres-data/
+redis-data/
+
+# Build metadata
+*.egg-info/
+
+# Local CodeBuddy/runtime artifacts
+.codebuddy/plans/
+.tmp-*
+
+# IDE
+.DS_Store
