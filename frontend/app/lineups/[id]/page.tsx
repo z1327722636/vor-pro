@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LikeReportBar } from "@/components/like-report-bar";
+import { MinimapVisualizer } from "@/components/minimap-visualizer";
 import { SourceBadge } from "@/components/source-badge";
 import { TripletViewer } from "@/components/triplet-viewer";
 import { apiFetch, type Lineup, type LineupStep } from "@/lib/api";
@@ -18,12 +19,12 @@ export default async function LineupDetailPage({ params }: { params: { id: strin
   const lineup = await apiFetch<Lineup>(`/api/lineups/${params.id}`);
   const steps = getLineupSteps(lineup);
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10">
-      <section className="flex flex-col gap-5 rounded-3xl border border-white/10 bg-white/[0.04] p-8 backdrop-blur">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-10">
+      <section className="flex flex-col gap-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="mb-2 text-sm tracking-[0.3em] text-valorant-red">点位详情</p>
-            <h1 className="text-4xl font-extrabold text-valorant-text">{getMapLabel(lineup.map)} · {getAgentLabel(lineup.agent)}</h1>
+            <h1 className="text-2xl font-extrabold text-valorant-text sm:text-4xl">{getMapLabel(lineup.map)} · {getAgentLabel(lineup.agent)}</h1>
           </div>
           <SourceBadge source={lineup.source_type} />
         </div>
@@ -47,12 +48,14 @@ export default async function LineupDetailPage({ params }: { params: { id: strin
         </div>
       </section>
       <TripletViewer steps={steps} />
-      <section className="grid gap-5 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl border border-white/10 bg-valorant-panel p-6">
-          <h2 className="mb-4 text-xl font-bold text-valorant-text">小地图标注</h2>
-          <div className="flex h-80 items-center justify-center rounded-xl bg-black/40 text-valorant-muted">站位、落点与弹道虚线</div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-valorant-panel p-6">
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <MinimapVisualizer
+          map={lineup.map}
+          site={lineup.site}
+          standing={{ x: lineup.minimap_x, y: lineup.minimap_y }}
+          landing={{ x: lineup.landing_x, y: lineup.landing_y }}
+        />
+        <div className="rounded-2xl border border-white/10 bg-valorant-panel p-5 sm:p-6">
           <h2 className="mb-4 text-xl font-bold text-valorant-text">社区反馈</h2>
           <LikeReportBar likes={lineup.likes_count} />
         </div>

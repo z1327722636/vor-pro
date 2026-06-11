@@ -58,6 +58,10 @@ def build_form(
     standing_description: str,
     aim_description: str,
     landing_description: str,
+    minimap_x: float | None = None,
+    minimap_y: float | None = None,
+    landing_x: float | None = None,
+    landing_y: float | None = None,
 ) -> ManualLineupForm:
     return ManualLineupForm(
         map=map,
@@ -69,6 +73,10 @@ def build_form(
         standing_description=standing_description,
         aim_description=aim_description,
         landing_description=landing_description,
+        minimap_x=minimap_x,
+        minimap_y=minimap_y,
+        landing_x=landing_x,
+        landing_y=landing_y,
     )
 
 
@@ -94,6 +102,10 @@ async def manual_upload(
     standing_description: str = Form(""),
     aim_description: str = Form(""),
     landing_description: str = Form(""),
+    minimap_x: float | None = Form(default=None),
+    minimap_y: float | None = Form(default=None),
+    landing_x: float | None = Form(default=None),
+    landing_y: float | None = Form(default=None),
 ) -> LineupResponse:
     form = build_form(
         map,
@@ -105,6 +117,10 @@ async def manual_upload(
         standing_description,
         aim_description,
         landing_description,
+        minimap_x,
+        minimap_y,
+        landing_x,
+        landing_y,
     )
 
     if images:

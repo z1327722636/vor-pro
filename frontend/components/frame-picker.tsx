@@ -95,7 +95,7 @@ export function FramePicker({ videoUrl, value, onChange, sidePanelTop }: FramePi
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
       <div className="flex flex-col gap-2">
         <video
           ref={videoRef}
@@ -113,7 +113,7 @@ export function FramePicker({ videoUrl, value, onChange, sidePanelTop }: FramePi
         />
         <p className="text-xs text-valorant-muted">当前取帧时间：{formatTimestamp(currentTimeMs)}。先拖动/播放到目标画面，再添加或更新节点。</p>
       </div>
-      <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+      <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
         {sidePanelTop}
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -130,7 +130,7 @@ export function FramePicker({ videoUrl, value, onChange, sidePanelTop }: FramePi
             还没有节点。播放视频并停在需要的画面，点击“添加当前帧”。
           </div>
         ) : (
-          <div className="flex max-h-[520px] flex-col gap-3 overflow-y-auto pr-1">
+          <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto pr-1 lg:max-h-[520px]">
             {value.map((node, index) => (
               <article key={node.id} className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
                 {node.previewUrl ? (

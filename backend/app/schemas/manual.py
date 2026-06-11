@@ -39,6 +39,10 @@ class ManualLineupForm(BaseModel):
     standing_description: str = ""
     aim_description: str = ""
     landing_description: str = ""
+    minimap_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    minimap_y: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_y: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class VideoFrameSubmit(BaseModel):

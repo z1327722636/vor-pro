@@ -22,7 +22,7 @@ export function LineupCard({ lineup }: { lineup: Lineup }) {
       href={`/lineups/${lineup.id}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-valorant-panel/80 shadow-black/30 transition hover:-translate-y-1 hover:border-valorant-red/70 hover:shadow-neon"
     >
-      <div className="grid h-36 grid-cols-3 gap-1 bg-valorant-navy p-1">
+      <div className="grid h-32 grid-cols-3 gap-1 bg-valorant-navy p-1 sm:h-36">
         {previewSteps.map((step, index) => {
           const src = assetUrl(step.image_path);
           const extraCount = index === 2 && steps.length > 3 ? steps.length - 3 : 0;

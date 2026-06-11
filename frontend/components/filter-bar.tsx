@@ -60,17 +60,17 @@ export default function FilterBar() {
   }
 
   return (
-    <div className="relative z-40 overflow-visible rounded-3xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
+    <div className="relative z-40 overflow-visible rounded-3xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-xl sm:p-4">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <form onSubmit={submitKeyword} className="flex min-w-0 flex-1 gap-2">
+          <form onSubmit={submitKeyword} className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-valorant-text outline-none transition placeholder:text-white/30 focus:border-valorant-red focus:shadow-neon"
               placeholder="搜索地图、英雄、道具或描述"
             />
-            <button type="submit" disabled={isPending} className="cursor-pointer rounded-xl bg-valorant-red px-5 py-3 text-sm font-bold text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={isPending} className="cursor-pointer rounded-xl bg-valorant-red px-5 py-3 text-sm font-bold text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
               搜索
             </button>
           </form>

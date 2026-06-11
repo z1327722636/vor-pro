@@ -26,6 +26,10 @@ class LineupCreate(BaseModel):
     standing_description: str = ""
     aim_description: str = ""
     landing_description: str = ""
+    minimap_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    minimap_y: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_y: float | None = Field(default=None, ge=0.0, le=1.0)
     source_type: LineupSource = LineupSource.AI_AUTO
     dedup_hash: str
 
@@ -47,6 +51,10 @@ class AdminLineupCreate(BaseModel):
     dedup_hash: str | None = None
     original_video_url: str | None = None
     original_video_timestamp_ms: int | None = None
+    minimap_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    minimap_y: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_y: float | None = Field(default=None, ge=0.0, le=1.0)
     is_hidden: bool = False
 
 
@@ -67,6 +75,10 @@ class AdminLineupUpdate(BaseModel):
     dedup_hash: str | None = None
     original_video_url: str | None = None
     original_video_timestamp_ms: int | None = None
+    minimap_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    minimap_y: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_y: float | None = Field(default=None, ge=0.0, le=1.0)
     is_hidden: bool | None = None
 
 
@@ -91,6 +103,10 @@ class UserLineupUpdate(BaseModel):
     landing_description: str | None = None
     original_video_url: str | None = None
     original_video_timestamp_ms: int | None = None
+    minimap_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    minimap_y: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_x: float | None = Field(default=None, ge=0.0, le=1.0)
+    landing_y: float | None = Field(default=None, ge=0.0, le=1.0)
     is_hidden: bool | None = None
 
 
@@ -130,6 +146,10 @@ class LineupResponse(BaseModel):
     corrected_from_id: int | None = None
     original_video_url: str | None = None
     original_video_timestamp_ms: int | None = None
+    minimap_x: float | None = None
+    minimap_y: float | None = None
+    landing_x: float | None = None
+    landing_y: float | None = None
     likes_count: int
     reports_count: int
     is_hidden: bool
@@ -220,6 +240,10 @@ def lineup_response(lineup: Lineup) -> LineupResponse:
         corrected_from_id=lineup.corrected_from_id,
         original_video_url=lineup.original_video_url,
         original_video_timestamp_ms=lineup.original_video_timestamp_ms,
+        minimap_x=lineup.minimap_x,
+        minimap_y=lineup.minimap_y,
+        landing_x=lineup.landing_x,
+        landing_y=lineup.landing_y,
         likes_count=lineup.likes_count,
         reports_count=lineup.reports_count,
         is_hidden=lineup.is_hidden,

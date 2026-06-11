@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { LineupBaseFields, defaultLineupBaseValue, type LineupBaseValue } from "@/components/lineup-form";
+import { MinimapCoordinatePicker, type MinimapCoordinates } from "@/components/minimap-coordinate-picker";
 import { API_BASE_URL, assetUrl, type CurrentUser, type Lineup, type LineupStep } from "@/lib/api";
 import { clearToken, getToken, setLoginRedirect } from "@/lib/auth";
 import { getAbilityLabel, getAgentLabel, getMapLabel, getSideLabel, getSiteLabel, getThrowLabel } from "@/lib/labels";
@@ -14,12 +15,20 @@ type MyLineupFormValue = LineupBaseValue & {
   landing_description: string;
   original_video_url: string;
   original_video_timestamp_ms: string;
+  minimap_x: string;
+  minimap_y: string;
+  landing_x: string;
+  landing_y: string;
   is_hidden: boolean;
 };
 
-type MyLineupPayload = Omit<MyLineupFormValue, "original_video_url" | "original_video_timestamp_ms"> & {
+type MyLineupPayload = Omit<MyLineupFormValue, "original_video_url" | "original_video_timestamp_ms" | "minimap_x" | "minimap_y" | "landing_x" | "landing_y"> & {
   original_video_url: string | null;
   original_video_timestamp_ms: number | null;
+  minimap_x: number | null;
+  minimap_y: number | null;
+  landing_x: number | null;
+  landing_y: number | null;
 };
 
 function defaultFormValue(): MyLineupFormValue {
@@ -30,6 +39,10 @@ function defaultFormValue(): MyLineupFormValue {
     landing_description: "",
     original_video_url: "",
     original_video_timestamp_ms: "",
+    minimap_x: "",
+    minimap_y: "",
+    landing_x: "",
+    landing_y: "",
     is_hidden: false
   };
 }
@@ -47,8 +60,31 @@ function formValueFromLineup(lineup: Lineup): MyLineupFormValue {
     landing_description: lineup.landing_description ?? "",
     original_video_url: lineup.original_video_url ?? "",
     original_video_timestamp_ms: lineup.original_video_timestamp_ms?.toString() ?? "",
+    minimap_x: lineup.minimap_x?.toString() ?? "",
+    minimap_y: lineup.minimap_y?.toString() ?? "",
+    landing_x: lineup.landing_x?.toString() ?? "",
+    landing_y: lineup.landing_y?.toString() ?? "",
     is_hidden: lineup.is_hidden
   };
+}
+
+function parseCoordinate(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.min(1, Math.max(0, parsed));
+}
+
+function formToMinimapCoordinates(form: MyLineupFormValue): MinimapCoordinates {
+  return {
+    standing: { x: parseCoordinate(form.minimap_x), y: parseCoordinate(form.minimap_y) },
+    landing: { x: parseCoordinate(form.landing_x), y: parseCoordinate(form.landing_y) }
+  };
+}
+
+function coordinateToFormValue(value: number | null) {
+  return value == null ? "" : value.toFixed(4);
 }
 
 function buildPayload(form: MyLineupFormValue): MyLineupPayload {
@@ -64,6 +100,10 @@ function buildPayload(form: MyLineupFormValue): MyLineupPayload {
     landing_description: form.landing_description,
     original_video_url: form.original_video_url.trim() || null,
     original_video_timestamp_ms: form.original_video_timestamp_ms.trim() ? Number(form.original_video_timestamp_ms) : null,
+    minimap_x: parseCoordinate(form.minimap_x),
+    minimap_y: parseCoordinate(form.minimap_y),
+    landing_x: parseCoordinate(form.landing_x),
+    landing_y: parseCoordinate(form.landing_y),
     is_hidden: form.is_hidden
   };
 }
@@ -283,9 +323,9 @@ export default function MyLineupsPage() {
   if (isLoading) return <div className="min-h-[calc(100vh-4rem)]" />;
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-6 px-6 py-10 xl:grid-cols-[420px_1fr]">
-      <section className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-valorant-panel p-6">
-        <div className="flex items-center justify-between gap-3">
+    <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 sm:py-10 xl:grid-cols-[420px_1fr]">
+      <section className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-valorant-panel p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm tracking-[0.28em] text-valorant-red">ACCOUNT</p>
             <h1 className="text-2xl font-bold text-valorant-text">我的投稿管理</h1>
@@ -314,7 +354,7 @@ export default function MyLineupsPage() {
             批量删除
           </button>
         </div>
-        <div className="max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+        <div className="max-h-[70vh] overflow-y-auto pr-1 xl:max-h-[calc(100vh-320px)]">
           <div className="flex flex-col gap-3">
             {filteredLineups.map((lineup) => {
               const checked = selectedIds.has(lineup.id);
@@ -338,7 +378,7 @@ export default function MyLineupsPage() {
         </div>
       </section>
 
-      <form onSubmit={submit} className="flex flex-col gap-5 rounded-3xl border border-white/10 bg-valorant-panel p-6">
+      <form onSubmit={submit} className="flex flex-col gap-5 rounded-3xl border border-white/10 bg-valorant-panel p-4 sm:p-6">
         {selected ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -362,6 +402,18 @@ export default function MyLineupsPage() {
               <input value={form.original_video_url} onChange={(event) => setForm((current) => ({ ...current, original_video_url: event.target.value }))} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-valorant-red" placeholder="原视频 URL（可选）" />
               <input value={form.original_video_timestamp_ms} onChange={(event) => setForm((current) => ({ ...current, original_video_timestamp_ms: event.target.value }))} type="number" min="0" className="md:col-span-2 rounded-xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-valorant-red" placeholder="原视频时间戳 ms（可选）" />
             </div>
+
+            <MinimapCoordinatePicker
+              map={form.map}
+              value={formToMinimapCoordinates(form)}
+              onChange={(coordinates) => setForm((current) => ({
+                ...current,
+                minimap_x: coordinateToFormValue(coordinates.standing.x),
+                minimap_y: coordinateToFormValue(coordinates.standing.y),
+                landing_x: coordinateToFormValue(coordinates.landing.x),
+                landing_y: coordinateToFormValue(coordinates.landing.y)
+              }))}
+            />
 
             <div className="grid gap-4 md:grid-cols-3">
               <textarea value={form.standing_description} onChange={(event) => setForm((current) => ({ ...current, standing_description: event.target.value }))} className="min-h-36 rounded-xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-valorant-red" placeholder="站位备注" />

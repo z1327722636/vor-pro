@@ -33,6 +33,10 @@ export type Lineup = {
   corrected_from_id?: number | null;
   original_video_url?: string | null;
   original_video_timestamp_ms?: number | null;
+  minimap_x?: number | null;
+  minimap_y?: number | null;
+  landing_x?: number | null;
+  landing_y?: number | null;
   likes_count: number;
   reports_count: number;
   is_hidden: boolean;

@@ -13,8 +13,13 @@ export function TripletViewer({ steps }: TripletViewerProps) {
 
         return (
           <article key={`${title}-${index}`} className="overflow-hidden rounded-2xl border border-white/10 bg-valorant-panel">
-            <div className="flex h-64 items-center justify-center bg-gradient-to-br from-valorant-panel2 to-black text-valorant-muted">
+            <div className="relative flex aspect-video min-h-56 items-center justify-center bg-gradient-to-br from-valorant-panel2 to-black text-valorant-muted sm:min-h-64">
               {src ? <img src={src} alt={`${title}预览`} className="h-full w-full object-cover" /> : `${title}预览`}
+              {step.note ? (
+                <div className="absolute bottom-3 left-3 max-w-[86%] rounded-xl border border-valorant-red/60 bg-black/75 px-3 py-2 text-xs font-semibold leading-5 text-valorant-text shadow-lg">
+                  {step.note}
+                </div>
+              ) : null}
             </div>
             <div className="p-4">
               <h3 className="mb-2 font-bold text-valorant-text">{title}</h3>
