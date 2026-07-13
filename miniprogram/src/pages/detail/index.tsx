@@ -20,7 +20,10 @@ export default function DetailPage() {
   const load = async () => {
     if (!id) return
     try {
-      setLineup(await getLineup(id))
+      const data = await getLineup(id)
+      setLineup(data)
+      setLiked(data.is_liked)
+      setFavorited(data.is_favorited)
     } catch (error) {
       Taro.showToast({ title: error instanceof Error ? error.message : '加载失败', icon: 'none' })
     }

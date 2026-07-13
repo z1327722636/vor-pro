@@ -32,6 +32,8 @@ export type Lineup = {
   likes_count: number
   reports_count: number
   is_hidden: boolean
+  is_favorited: boolean
+  is_liked: boolean
   created_at: string
 }
 

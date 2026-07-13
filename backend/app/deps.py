@@ -12,6 +12,7 @@ from app.models.user import User
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 
 async def get_current_user(
@@ -38,7 +39,22 @@ async def get_current_user(
         raise credentials_error
     return user
 
+
+async def get_optional_current_user(
+    db: DbSession,
+    token: Annotated[str | None, Depends(oauth2_scheme_optional)],
+) -> User | None:
+    """Try to resolve the current user from a Bearer token without raising on missing/invalid."""
+    if token is None:
+        return None
+    try:
+        return await get_current_user(db, token)
+    except HTTPException:
+        return None
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
+OptionalCurrentUser = Annotated[User | None, Depends(get_optional_current_user)]
 
 
 async def require_admin(current_user: CurrentUser) -> User:

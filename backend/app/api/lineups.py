@@ -2,10 +2,11 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import delete, select, update
 
 from app.crud.lineups import build_lineup_query, get_lineup
-from app.deps import CurrentUser, DbSession
+from app.deps import CurrentUser, DbSession, OptionalCurrentUser
 from app.enums import LineupSource, MapName, Side, ThrowType
 from app.models.favorite import Favorite
 from app.models.lineup import Lineup
+from app.models.lineup_like import LineupLike
 from app.schemas.lineup import (
     LineupCreate,
     LineupResponse,
@@ -155,11 +156,24 @@ async def delete_my_lineup(lineup_id: int, db: DbSession, current_user: CurrentU
 
 
 @router.get("/{lineup_id}", response_model=LineupResponse)
-async def read_lineup(lineup_id: int, db: DbSession) -> LineupResponse:
+async def read_lineup(lineup_id: int, db: DbSession, current_user: OptionalCurrentUser = None) -> LineupResponse:
     lineup = await get_lineup(db, lineup_id)
     if lineup is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lineup not found")
-    return lineup_response(lineup)
+
+    is_favorited = False
+    is_liked = False
+    if current_user:
+        fav = await db.execute(
+            select(Favorite).where(Favorite.user_id == current_user.id, Favorite.lineup_id == lineup_id)
+        )
+        is_favorited = fav.scalar_one_or_none() is not None
+        like = await db.execute(
+            select(LineupLike).where(LineupLike.user_id == current_user.id, LineupLike.lineup_id == lineup_id)
+        )
+        is_liked = like.scalar_one_or_none() is not None
+
+    return lineup_response(lineup, is_favorited=is_favorited, is_liked=is_liked)
 
 
 @router.post("/{lineup_id}/favorite", status_code=status.HTTP_204_NO_CONTENT)
