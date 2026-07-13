@@ -1,0 +1,9 @@
+.login-guard {
+  padding: 24px 0;
+}
+
+.login-guard__button {
+  background: #ff4655;
+  color: #fff;
+  font-weight: 700;
+}

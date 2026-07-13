@@ -29,6 +29,20 @@ type ResolveState =
   | { status: "ready"; playableUrl: string; title?: string | null }
   | { status: "error"; message: string };
 
+type SubtitleSuggestion = {
+  timestamp_ms: number;
+  note: string;
+  confidence: number;
+  reason: string;
+  source_text: string;
+};
+
+type SubtitleState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; suggestions: SubtitleSuggestion[]; segmentsCount: number; usedAi: boolean }
+  | { status: "error"; message: string };
+
 type SubmitState =
   | { status: "idle" }
   | { status: "submitting"; message: string }
@@ -53,6 +67,25 @@ function buildFrameTimestamps(nodes: FrameNode[]): FrameMap {
 
 function optionLabel(options: readonly { value: string; label: string }[], value: string) {
   return options.find((item) => item.value === value)?.label ?? value;
+}
+
+function formatTimestampMs(milliseconds: number) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function createFrameNodeFromSuggestion(suggestion: SubtitleSuggestion, index: number): FrameNode {
+  const id = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `subtitle-frame-${Date.now()}-${index}`;
+  return {
+    id,
+    timestampMs: suggestion.timestamp_ms,
+    note: suggestion.note,
+    annotations: []
+  };
 }
 
 function buildDraftSummary(form: LineupBaseValue) {
@@ -191,6 +224,15 @@ function hasDuplicateTimestamps(nodes: FrameNode[]) {
   return new Set(nodes.map((node) => node.timestampMs)).size !== nodes.length;
 }
 
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("读取编辑后的关键帧失败"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function UploadContributionPage() {
   const router = useRouter();
   const search = useSearchParams();
@@ -204,11 +246,13 @@ export default function UploadContributionPage() {
   const [manualForm, setManualForm] = useState<LineupBaseValue>(() => defaultLineupBaseValue());
   const [manualMinimap, setManualMinimap] = useState<MinimapCoordinates>(() => emptyMinimapCoordinates());
   const [steps, setSteps] = useState<UploadStep[]>([{ id: "step-1", note: "", annotations: [] }]);
+  const [editingStepId, setEditingStepId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState(initialVideoUrl);
   const [videoDrafts, setVideoDrafts] = useState<VideoLineupDraft[]>(() => [createVideoLineupDraft(1)]);
   const [activeDraftId, setActiveDraftId] = useState("lineup-1");
   const [videoError, setVideoError] = useState("");
   const [resolveState, setResolveState] = useState<ResolveState>({ status: "idle" });
+  const [subtitleState, setSubtitleState] = useState<SubtitleState>({ status: "idle" });
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
 
   useEffect(() => {
@@ -230,6 +274,7 @@ export default function UploadContributionPage() {
   const activeDraft = videoDrafts.find((draft) => draft.id === activeDraftId) ?? videoDrafts[0];
   const canUseVideoWorkspace = resolveState.status === "ready" || !!correctFromLineupId;
   const previewLineupId = canUseVideoWorkspace ? Number(search.get("previewLineupId")) || activeDraft?.savedLineupId || null : null;
+  const editingStep = steps.find((step) => step.id === editingStepId) ?? null;
 
   function clearLineupPreview() {
     const params = new URLSearchParams(search.toString());
@@ -279,6 +324,7 @@ export default function UploadContributionPage() {
     if (previousUrl) URL.revokeObjectURL(previousUrl);
     delete previewUrlsRef.current[id];
     setSteps((current) => current.filter((item) => item.id !== id));
+    if (editingStepId === id) setEditingStepId(null);
   }
 
   function handleFileChange(id: string, event: ChangeEvent<HTMLInputElement>) {
@@ -372,6 +418,7 @@ export default function UploadContributionPage() {
       return;
     }
     clearLineupPreview();
+    setSubtitleState({ status: "idle" });
     setResolveState({ status: "loading" });
     try {
       const response = await fetch(`${API_BASE_URL}/api/manual/external-video/resolve`, {
@@ -408,6 +455,59 @@ export default function UploadContributionPage() {
         message: `解析请求异常：${error instanceof Error ? error.message : String(error)}`
       });
     }
+  }
+
+  async function suggestFramesFromSubtitles() {
+    const token = getAuthToken();
+    if (!token) return;
+    const trimmed = videoUrl.trim();
+    if (!trimmed) {
+      setSubtitleState({ status: "error", message: "请先输入视频 URL" });
+      return;
+    }
+
+    setSubtitleState({ status: "loading" });
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/manual/external-video/subtitle-suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ source_url: trimmed, max_suggestions: 12 })
+      });
+      if (!response.ok) {
+        const detail = await response
+          .json()
+          .then((data) => (data && typeof data.detail === "string" ? data.detail : ""))
+          .catch(() => "");
+        setSubtitleState({ status: "error", message: detail || `字幕解析失败（HTTP ${response.status}）` });
+        return;
+      }
+      const data = (await response.json()) as {
+        segments_count: number;
+        suggestions: SubtitleSuggestion[];
+        used_ai: boolean;
+      };
+      setSubtitleState({
+        status: "ready",
+        suggestions: data.suggestions,
+        segmentsCount: data.segments_count,
+        usedAi: data.used_ai
+      });
+    } catch (error) {
+      setSubtitleState({ status: "error", message: error instanceof Error ? error.message : "字幕解析请求异常" });
+    }
+  }
+
+  function applySubtitleSuggestions(suggestions: SubtitleSuggestion[]) {
+    if (!activeDraft || suggestions.length === 0) return;
+    const existing = new Set(activeDraft.frameNodes.map((node) => node.timestampMs));
+    const nodes = suggestions
+      .filter((suggestion) => !existing.has(suggestion.timestamp_ms))
+      .map(createFrameNodeFromSuggestion);
+    if (nodes.length === 0) return;
+    updateActiveDraft({
+      frameNodes: [...activeDraft.frameNodes, ...nodes],
+      savedLineupId: undefined
+    });
   }
 
   async function pollJobUntilDone(sessionId: number, token: string): Promise<number | null> {
@@ -455,6 +555,32 @@ export default function UploadContributionPage() {
     const nodes = activeDraft.frameNodes;
     if (hasDuplicateTimestamps(nodes)) {
       setVideoError("当前 Lineup 有多个节点停在同一时间点。请分别拖动/播放到不同画面后，用“更新”或重新添加节点。");
+      setSubmitState({ status: "idle" });
+      return;
+    }
+
+    let frameNodes: { timestamp_ms: number; note: string; order_index: number; edited_image_data_url?: string }[];
+    try {
+      frameNodes = await Promise.all(nodes.map(async (node, index) => {
+        let editedImageDataUrl: string | undefined;
+        if (node.previewUrl && (node.annotations.length > 0 || node.note.trim())) {
+          const editedFile = await renderAnnotatedImageFile({
+            sourceUrl: node.previewUrl,
+            fileName: `video-frame-${index + 1}.jpg`,
+            note: node.note,
+            annotations: node.annotations
+          });
+          editedImageDataUrl = await fileToDataUrl(editedFile);
+        }
+        return {
+          timestamp_ms: node.timestampMs,
+          note: node.note,
+          order_index: index,
+          edited_image_data_url: editedImageDataUrl
+        };
+      }));
+    } catch (error) {
+      setSubmitState({ status: "error", message: error instanceof Error ? error.message : "关键帧图片编辑合成失败" });
       return;
     }
 
@@ -470,11 +596,7 @@ export default function UploadContributionPage() {
         landing_x: activeDraft.minimap.landing.x,
         landing_y: activeDraft.minimap.landing.y
       },
-      frame_nodes: nodes.map((node, index) => ({
-        timestamp_ms: node.timestampMs,
-        note: node.note,
-        order_index: index
-      })),
+      frame_nodes: frameNodes,
       regenerate_ai_description: false
     };
 
@@ -611,19 +733,47 @@ export default function UploadContributionPage() {
                     </div>
                   </div>
 
-                  <ImageAnnotationEditor
-                    imageUrl={step.previewUrl}
-                    note={step.note}
-                    annotations={step.annotations}
-                    onChange={(annotations) => updateStepAnnotations(step.id, annotations)}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => step.previewUrl && setEditingStepId(step.id)}
+                    disabled={!step.previewUrl}
+                    className="block w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 text-left disabled:cursor-not-allowed md:hidden"
+                  >
+                    {step.previewUrl ? (
+                      <>
+                        <div
+                          aria-label={`步骤 ${index + 1} 预览`}
+                          className="aspect-video w-full bg-cover bg-center"
+                          style={{ backgroundImage: `url(${step.previewUrl})` }}
+                        />
+                        <div className="p-3">
+                          <p className="text-sm font-bold text-valorant-text">点击编辑图片标注和描述</p>
+                          <p className="mt-1 line-clamp-2 text-xs text-valorant-muted">{step.note || "还没有描述"}</p>
+                          <p className="mt-2 text-xs text-valorant-red">{step.annotations.length} 个标注</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex aspect-video items-center justify-center px-4 text-center text-sm text-valorant-muted">
+                        选择图片后，点图片添加描述和画箭头/框选区域
+                      </div>
+                    )}
+                  </button>
 
-                  <textarea
-                    value={step.note}
-                    onChange={(event) => updateStepNote(step.id, event.currentTarget.value)}
-                    className="mt-3 min-h-28 w-full resize-y rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-valorant-text outline-none placeholder:text-valorant-muted focus:border-valorant-red"
-                    placeholder={`步骤 ${index + 1} 备注：会显示在图片左下角，并随图片一起保存`}
-                  />
+                  <div className="hidden md:block">
+                    <ImageAnnotationEditor
+                      imageUrl={step.previewUrl}
+                      note={step.note}
+                      annotations={step.annotations}
+                      onChange={(annotations) => updateStepAnnotations(step.id, annotations)}
+                    />
+
+                    <textarea
+                      value={step.note}
+                      onChange={(event) => updateStepNote(step.id, event.currentTarget.value)}
+                      className="mt-3 min-h-28 w-full resize-y rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-valorant-text outline-none placeholder:text-valorant-muted focus:border-valorant-red"
+                      placeholder={`步骤 ${index + 1} 备注：会显示在图片左下角，并随图片一起保存`}
+                    />
+                  </div>
                 </article>
               ))}
             </div>
@@ -658,6 +808,7 @@ export default function UploadContributionPage() {
                 onChange={(event) => {
                   setVideoUrl(event.currentTarget.value);
                   clearLineupPreview();
+                  setSubtitleState({ status: "idle" });
                   if (resolveState.status !== "idle") setResolveState({ status: "idle" });
                 }}
                 className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-valorant-text outline-none placeholder:text-valorant-muted"
@@ -688,8 +839,62 @@ export default function UploadContributionPage() {
             )}
             {resolveState.status === "ready" && (
               <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-                视频已就绪{resolveState.title ? `：${resolveState.title}` : ""}，请在播放器中暂停到关键画面，点击“添加当前帧”。
+                视频已就绪，暂停到目标画面后点“添加当前帧”{resolveState.title ? <span className="mt-1 block line-clamp-1 text-xs text-emerald-200/80">{resolveState.title}</span> : null}
               </p>
+            )}
+
+            {resolveState.status === "ready" && (
+              <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-valorant-text">AI 字幕定位关键帧</h3>
+                    <p className="mt-1 text-xs leading-5 text-valorant-muted">
+                      先解析字幕时间轴，找站位、瞄点、投掷和落点相关片段，再把时间点填成帧节点。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={suggestFramesFromSubtitles}
+                    disabled={subtitleState.status === "loading"}
+                    className="shrink-0 cursor-pointer rounded-xl border border-valorant-blue/40 px-4 py-2 text-sm font-bold text-valorant-blue hover:shadow-blueNeon disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {subtitleState.status === "loading" ? "解析字幕中…" : "用字幕找关键帧"}
+                  </button>
+                </div>
+
+                {subtitleState.status === "error" ? (
+                  <p className="mt-3 rounded-xl border border-valorant-red/30 bg-valorant-red/10 px-3 py-2 text-xs text-valorant-red">{subtitleState.message}</p>
+                ) : null}
+
+                {subtitleState.status === "ready" ? (
+                  <div className="mt-3 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-valorant-muted">
+                      <span>已读取 {subtitleState.segmentsCount} 段字幕，{subtitleState.usedAi ? "AI" : "规则"} 给出 {subtitleState.suggestions.length} 个候选。</span>
+                      {subtitleState.suggestions.length > 0 ? (
+                        <button type="button" onClick={() => applySubtitleSuggestions(subtitleState.suggestions)} className="font-bold text-valorant-red hover:text-white">
+                          填入当前 Lineup
+                        </button>
+                      ) : null}
+                    </div>
+                    {subtitleState.suggestions.length > 0 ? (
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {subtitleState.suggestions.map((suggestion, index) => (
+                          <article key={`${suggestion.timestamp_ms}-${index}`} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-valorant-red">{formatTimestampMs(suggestion.timestamp_ms)}</span>
+                              <span className="text-valorant-muted">{Math.round(suggestion.confidence * 100)}%</span>
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-valorant-text">{suggestion.note}</p>
+                            <p className="mt-1 line-clamp-1 text-valorant-muted">{suggestion.reason}</p>
+                          </article>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-valorant-muted">字幕里没有明显的站位、瞄准或投掷描述，建议继续手动取帧。</p>
+                    )}
+                  </div>
+                ) : null}
+              </section>
             )}
 
             {canUseVideoWorkspace && activeDraft && (
@@ -699,7 +904,7 @@ export default function UploadContributionPage() {
                 }
                 value={activeDraft.frameNodes}
                 onChange={(nodes) => updateActiveDraft({ frameNodes: nodes, savedLineupId: undefined })}
-                sidePanelTop={
+                videoPanelBottom={
                   <div className="flex flex-col gap-4">
                     <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
                       <div className="flex items-center justify-between gap-3">
@@ -744,16 +949,17 @@ export default function UploadContributionPage() {
                       <LineupBaseFields
                         value={activeDraft.form}
                         onChange={(form) => updateActiveDraft({ form, savedLineupId: undefined })}
-                        columnsClassName="grid-cols-1"
+                        columnsClassName="grid-cols-2 xl:grid-cols-3"
                       />
                     </section>
-
-                    <MinimapCoordinatePicker
-                      map={activeDraft.form.map}
-                      value={activeDraft.minimap}
-                      onChange={(minimap) => updateActiveDraft({ minimap, savedLineupId: undefined })}
-                    />
                   </div>
+                }
+                sidePanelTop={
+                  <MinimapCoordinatePicker
+                    map={activeDraft.form.map}
+                    value={activeDraft.minimap}
+                    onChange={(minimap) => updateActiveDraft({ minimap, savedLineupId: undefined })}
+                  />
                 }
               />
             )}
@@ -789,6 +995,34 @@ export default function UploadContributionPage() {
           ) : null}
         </form>
       )}
+
+      {editingStep ? (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90 p-3 backdrop-blur md:hidden" role="dialog" aria-modal="true" aria-label="编辑步骤图片和描述">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-valorant-red">STEP {steps.findIndex((step) => step.id === editingStep.id) + 1}</p>
+              <h2 className="mt-1 text-lg font-bold text-valorant-text">编辑图片与描述</h2>
+            </div>
+            <button type="button" onClick={() => setEditingStepId(null)} className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold text-valorant-text">
+              完成
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-valorant-panel/95 p-3">
+            <ImageAnnotationEditor
+              imageUrl={editingStep.previewUrl}
+              note={editingStep.note}
+              annotations={editingStep.annotations}
+              onChange={(annotations) => updateStepAnnotations(editingStep.id, annotations)}
+            />
+            <textarea
+              value={editingStep.note}
+              onChange={(event) => updateStepNote(editingStep.id, event.currentTarget.value)}
+              className="mt-3 min-h-28 w-full resize-y rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-valorant-text outline-none placeholder:text-valorant-muted focus:border-valorant-red"
+              placeholder="写这张图的描述，会显示在图片左下角，并随图片一起保存"
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

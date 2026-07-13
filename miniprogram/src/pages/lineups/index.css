@@ -1,0 +1,11 @@
+.lineups-more {
+  margin: 20px 0 40px;
+  background: #152237;
+  color: #edf4ff;
+}
+
+.lineups-empty {
+  padding: 80px 0;
+  text-align: center;
+  color: #8ea0b8;
+}

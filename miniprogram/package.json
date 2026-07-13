@@ -1,0 +1,34 @@
+{
+  "name": "vor-miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Valorant Lineup Hunter WeChat Mini Program",
+  "scripts": {
+    "dev:weapp": "taro build --type weapp --watch",
+    "build:weapp": "taro build --type weapp",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tarojs/components": "^4.0.9",
+    "@tarojs/helper": "^4.0.9",
+    "@tarojs/plugin-framework-react": "^4.0.9",
+    "@tarojs/plugin-platform-weapp": "^4.0.9",
+    "@tarojs/react": "^4.0.9",
+    "@tarojs/runtime": "^4.0.9",
+    "@tarojs/shared": "^4.0.9",
+    "@tarojs/taro": "^4.0.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@tarojs/cli": "^4.0.9",
+    "@tarojs/webpack5-runner": "^4.0.9",
+    "@types/react": "^18.3.3",
+    "babel-preset-taro": "^4.2.0",
+    "typescript": "^5.5.4"
+  }
+}

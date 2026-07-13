@@ -23,6 +23,21 @@ async def like_lineup(lineup_id: int, db: DbSession, current_user: CurrentUser) 
         await db.commit()
 
 
+@router.delete("/{lineup_id}/like", status_code=status.HTTP_204_NO_CONTENT)
+async def unlike_lineup(lineup_id: int, db: DbSession, current_user: CurrentUser) -> None:
+    lineup = await get_lineup(db, lineup_id)
+    if lineup is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lineup not found")
+    result = await db.execute(
+        select(LineupLike).where(LineupLike.user_id == current_user.id, LineupLike.lineup_id == lineup_id)
+    )
+    like = result.scalar_one_or_none()
+    if like is not None:
+        await db.delete(like)
+        lineup.likes_count = max(0, lineup.likes_count - 1)
+        await db.commit()
+
+
 @router.post("/{lineup_id}/report", status_code=status.HTTP_204_NO_CONTENT)
 async def report_lineup(
     lineup_id: int,

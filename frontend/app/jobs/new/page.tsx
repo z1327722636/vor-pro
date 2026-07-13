@@ -12,6 +12,15 @@ type VideoSearchResult = {
   uploader?: string | null;
 };
 
+function platformLabel(platform: string) {
+  const labels: Record<string, string> = {
+    bilibili: "B站",
+    douyin: "抖音",
+    tiktok: "TikTok"
+  };
+  return labels[platform] ?? platform;
+}
+
 export default function NewJobPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"url" | "keyword">("url");
@@ -113,6 +122,23 @@ export default function NewJobPage() {
     }
   }
 
+  function openManualParse(sourceUrl: string) {
+    const trimmed = sourceUrl.trim();
+    if (!trimmed) {
+      setError("请输入要手动解析的视频链接。");
+      return;
+    }
+
+    const params = new URLSearchParams({ tab: "video", videoUrl: trimmed });
+    const target = `/contribute/upload?${params.toString()}`;
+    if (!getToken()) {
+      setLoginRedirect(target);
+      router.push("/login");
+      return;
+    }
+    router.push(target as Parameters<typeof router.push>[0]);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const input = value.trim();
@@ -157,7 +183,16 @@ export default function NewJobPage() {
         </div>
         <input className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 outline-none focus:border-valorant-red" value={value} onChange={(e) => setValue(e.target.value)} placeholder={mode === "url" ? "粘贴 B站/抖音/TikTok 视频链接" : "例如 Sova Bind 进攻 lineup"} />
         {error && <p className="text-sm text-valorant-red">{error}</p>}
-        <button className="cursor-pointer rounded-xl bg-valorant-red px-6 py-4 font-bold text-white hover:shadow-neon disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isBusy}>{mode === "keyword" ? (isSearching ? "搜索中..." : "搜索视频") : (isSubmitting ? "提交中..." : "开始解析")}</button>
+        {mode === "url" ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button className="cursor-pointer rounded-xl bg-valorant-red px-6 py-4 font-bold text-white hover:shadow-neon disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isBusy}>{isSubmitting ? "提交中..." : "自动解析"}</button>
+            <button className="cursor-pointer rounded-xl border border-valorant-blue/40 px-6 py-4 font-bold text-valorant-blue transition hover:shadow-blueNeon disabled:cursor-not-allowed disabled:opacity-60" type="button" disabled={isBusy} onClick={() => openManualParse(value)}>
+              手动解析关键帧
+            </button>
+          </div>
+        ) : (
+          <button className="cursor-pointer rounded-xl bg-valorant-red px-6 py-4 font-bold text-white hover:shadow-neon disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isBusy}>{isSearching ? "搜索中..." : "搜索视频"}</button>
+        )}
       </form>
 
       {mode === "keyword" && searchedKeyword && (
@@ -177,15 +212,20 @@ export default function NewJobPage() {
               <article key={video.url} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/20 p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-valorant-red">
-                    <span>{video.platform === "bilibili" ? "B站" : video.platform}</span>
+                    <span>{platformLabel(video.platform)}</span>
                     {video.uploader && <span className="truncate text-valorant-muted">/ {video.uploader}</span>}
                   </div>
                   <h3 className="truncate text-lg font-bold text-valorant-text">{video.title || video.url}</h3>
                   <a className="mt-1 block truncate text-sm text-valorant-muted hover:text-valorant-red" href={video.url} target="_blank" rel="noreferrer">{video.url}</a>
                 </div>
-                <button type="button" onClick={() => void parseVideo(video)} disabled={isBusy} className="shrink-0 cursor-pointer rounded-xl border border-valorant-red px-5 py-3 text-sm font-bold text-valorant-red hover:bg-valorant-red hover:text-white disabled:cursor-not-allowed disabled:opacity-60">
-                  {parsingUrl === video.url ? "提交中..." : "解析此视频"}
-                </button>
+                <div className="flex shrink-0 flex-col gap-2 sm:w-36">
+                  <button type="button" onClick={() => void parseVideo(video)} disabled={isBusy} className="cursor-pointer rounded-xl border border-valorant-red px-5 py-3 text-sm font-bold text-valorant-red hover:bg-valorant-red hover:text-white disabled:cursor-not-allowed disabled:opacity-60">
+                    {parsingUrl === video.url ? "提交中..." : "自动解析"}
+                  </button>
+                  <button type="button" onClick={() => openManualParse(video.url)} disabled={isBusy} className="cursor-pointer rounded-xl border border-valorant-blue/40 px-5 py-3 text-sm font-bold text-valorant-blue transition hover:shadow-blueNeon disabled:cursor-not-allowed disabled:opacity-60">
+                    手动解析
+                  </button>
+                </div>
               </article>
             ))}
           </div>

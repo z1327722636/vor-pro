@@ -11,6 +11,10 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=72)
 
 
+class WechatLoginRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=256)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

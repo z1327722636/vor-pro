@@ -1,0 +1,40 @@
+.home-hero {
+  padding: 36px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 32px;
+  background: linear-gradient(135deg, rgba(255, 70, 85, 0.24), rgba(21, 34, 55, 0.96));
+}
+
+.home-hero__eyebrow,
+.home-hero__title,
+.home-hero__desc {
+  display: block;
+}
+
+.home-hero__eyebrow {
+  color: #ffb2ba;
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+
+.home-hero__title {
+  margin-top: 14px;
+  color: #fff;
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.home-hero__desc {
+  margin-top: 18px;
+  color: #c9d6e8;
+  font-size: 26px;
+  line-height: 1.6;
+}
+
+.home-hero__button {
+  margin: 28px 0 0;
+  background: #ff4655;
+  color: #fff;
+  font-weight: 700;
+}

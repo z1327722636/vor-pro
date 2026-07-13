@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24 * 7
     admin_email: str | None = None
     admin_password: str | None = None
+    wechat_appid: str | None = None
+    wechat_secret: str | None = None
+    wechat_login_mock: bool = True
 
     database_url: str = "postgresql+asyncpg://vor:vor_password@localhost:5432/vor"
     redis_url: str = "redis://localhost:6379/0"

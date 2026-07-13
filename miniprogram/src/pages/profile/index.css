@@ -1,0 +1,56 @@
+.profile-card,
+.profile-panel {
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  background: #101b2c;
+}
+
+.profile-card__title,
+.profile-card__desc,
+.profile-panel__title,
+.profile-panel__item {
+  display: block;
+}
+
+.profile-card__title {
+  color: #fff;
+  font-size: 42px;
+  font-weight: 800;
+}
+
+.profile-card__desc {
+  margin: 16px 0 28px;
+  color: #c9d6e8;
+  font-size: 26px;
+  line-height: 1.6;
+}
+
+.profile-card__button {
+  margin: 0;
+  background: #ff4655;
+  color: #fff;
+  font-weight: 700;
+}
+
+.profile-card__button--ghost {
+  background: #152237;
+}
+
+.profile-panel {
+  margin-top: 24px;
+}
+
+.profile-panel__title {
+  margin-bottom: 18px;
+  color: #fff;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.profile-panel__item {
+  margin-bottom: 12px;
+  color: #8ea0b8;
+  font-size: 26px;
+  line-height: 1.5;
+}
