@@ -1,12 +1,11 @@
 # CODEBUDDY.md
 
-本项目是 Valorant Lineup 知识平台：前端负责浏览、投稿、矫正和管理交互；后端负责鉴权、Lineup、任务、上传、视频解析和存储；`ml/` 负责 CV/VLM 抽帧与识别。
+本项目是 Valorant Lineup 知识平台：前端负责浏览、投稿、矫正和管理交互；后端负责鉴权、Lineup、上传、视频下载与帧抽取、存储。
 
 ## 技术栈
 
 - 前端：Next.js 14、React 18、TypeScript、Tailwind CSS、React Query、Zustand。
-- 后端：FastAPI、SQLAlchemy async、Alembic、PostgreSQL、Redis、Celery、MinIO。
-- ML：Python 3.11、OpenCV、Pillow、LiteLLM、VLM prompt/parser。
+- 后端：FastAPI、SQLAlchemy async、Alembic、PostgreSQL、Redis、MinIO。
 - 本地依赖服务：`docker compose up -d postgres redis minio`。
 
 ## 不可破坏的边界
@@ -40,15 +39,10 @@
 
 - 路由在 `backend/app/api/`，schema 在 `backend/app/schemas/`，CRUD 在 `backend/app/crud/`，业务逻辑在 `backend/app/services/`。
 - 异步数据库操作使用 `AsyncSession`，事务边界要清晰。
-- Celery 任务必须能在开发环境按配置降级为 inline 执行。
 - 所有外部服务调用设置超时、错误分类和日志；不要吞异常。
-- 新增枚举值时同步 `app/enums.py`、前端 labels、VLM prompt/parser。
+- 新增枚举值时同步 `app/enums.py`、前端 labels。
 
-## ML 规则
 
-- Prompt 输出必须是可解析 JSON，不返回 markdown。
-- 枚举/id 保持 lowercase English，用户可见描述用简体中文。
-- 不确定时降低 confidence，不编造地图、英雄或技能。
 
 ## 常用检查
 
@@ -62,8 +56,7 @@ bash .codebuddy/hooks/harness-check.sh
 
 ```bash
 cd frontend && npm run typecheck && npm run lint
-cd backend && python3 -m ruff check app workers
-cd ml && python3 -m ruff check valorant_cv valorant_vlm
+cd backend && python3 -m ruff check app
 ```
 
 如果本机依赖缺失，先说明缺失项，不要用临时脚本绕过检查。

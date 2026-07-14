@@ -14,7 +14,7 @@ class Frame(Base):
     video_id: Mapped[int | None] = mapped_column(ForeignKey("videos.id", ondelete="SET NULL"))
     timestamp_ms: Mapped[int | None] = mapped_column(Integer, index=True)
     role: Mapped[FrameRole] = mapped_column(Enum(FrameRole), index=True)
-    source: Mapped[FrameSource] = mapped_column(Enum(FrameSource), default=FrameSource.AUTO, index=True)
+    source: Mapped[FrameSource] = mapped_column(Enum(FrameSource), default=FrameSource.USER_UPLOADED, index=True)
     image_path: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

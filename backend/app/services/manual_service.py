@@ -125,6 +125,8 @@ async def create_manual_lineup_with_steps(
         author_user_id=user_id,
         original_video_url=original_video_url,
         original_video_timestamp_ms=original_video_timestamp_ms,
+        corrected_from_id=corrected_from_id,
+        correction_version=correction_version,
         dedup_hash=hashlib.sha256(dedup_raw.encode("utf-8")).hexdigest(),
     )
     db.add(lineup)

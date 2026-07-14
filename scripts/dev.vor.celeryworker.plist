@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.vor.celeryworker</string>
+
+  <!-- 用 bash 调脚本，便于日志和参数集中管理 -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/zakikizou/CodeBuddy/vor-pro/scripts/launchd-worker.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/zakikizou/CodeBuddy/vor-pro/backend</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONPATH</key>
+    <string>/Users/zakikizou/CodeBuddy/vor-pro/backend:/Users/zakikizou/CodeBuddy/vor-pro/ml</string>
+    <key>PATH</key>
+    <string>/Users/zakikizou/CodeBuddy/vor-pro/.venv/bin:/opt/homebrew/bin:/usr/local/bin:/Users/zakikizou/.local/bin:/usr/bin:/bin</string>
+    <key>LANG</key>
+    <string>en_US.UTF-8</string>
+  </dict>
+
+  <!-- 启动方式：崩溃自动重启；不强制开机自启，由 launchctl load -w 控制 -->
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+    <key>Crashed</key>
+    <true/>
+  </dict>
+
+  <!-- 30 秒后启动，避开 Redis/PG 健康检查抖动期 -->
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/zakikizou/CodeBuddy/vor-pro/storage/logs/celery-worker.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/zakikizou/CodeBuddy/vor-pro/storage/logs/celery-worker.err.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

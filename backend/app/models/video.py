@@ -18,6 +18,5 @@ class Video(Base):
     raw_path: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    frames = relationship("Frame", back_populates="video", cascade="all, delete-orphan")
-    jobs = relationship("Job", back_populates="video")
+    frames = relationship("Frame", back_populates="video")
     lineups = relationship("Lineup", back_populates="video")

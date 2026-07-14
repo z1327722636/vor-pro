@@ -15,7 +15,6 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=false(), default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
     likes = relationship("LineupLike", back_populates="user", cascade="all, delete-orphan")
     reports = relationship("LineupReport", back_populates="user", cascade="all, delete-orphan")

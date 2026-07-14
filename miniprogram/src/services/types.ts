@@ -56,6 +56,7 @@ export type LineupFilters = {
   side?: string
   ability?: string
   throw_type?: string
+  source_type?: string
   sort?: string
   limit?: number
   offset?: number

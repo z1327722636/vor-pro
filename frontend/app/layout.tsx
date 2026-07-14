@@ -19,7 +19,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <div className="flex items-center gap-5 text-sm text-valorant-muted">
               <Link className="hover:text-valorant-red" href="/lineups">Lineups</Link>
-              <Link className="hover:text-valorant-red" href="/jobs/new">AI 解析</Link>
               <Link className="hover:text-valorant-red" href="/contribute/upload">投稿</Link>
               <AuthNav />
             </div>

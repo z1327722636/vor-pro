@@ -30,7 +30,7 @@ class LineupCreate(BaseModel):
     minimap_y: float | None = Field(default=None, ge=0.0, le=1.0)
     landing_x: float | None = Field(default=None, ge=0.0, le=1.0)
     landing_y: float | None = Field(default=None, ge=0.0, le=1.0)
-    source_type: LineupSource = LineupSource.AI_AUTO
+    source_type: LineupSource = LineupSource.USER_MANUAL_UPLOAD
     dedup_hash: str
 
 

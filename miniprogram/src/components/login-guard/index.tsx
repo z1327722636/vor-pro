@@ -29,7 +29,13 @@ export function LoginGuard({ children }: Props) {
 
   return (
     <View className='login-guard'>
-      <Button className='login-guard__button' loading={loading} onClick={handleLogin}>微信登录后继续</Button>
+      <View className='login-guard__icon'>
+        <View className='login-guard__lock'>🔒</View>
+      </View>
+      <View className='login-guard__text'>登录后才能进行互动</View>
+      <Button className='login-guard__button' loading={loading} onClick={handleLogin}>
+        微信一键登录
+      </Button>
     </View>
   )
 }

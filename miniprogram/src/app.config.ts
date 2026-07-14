@@ -3,6 +3,7 @@ export default defineAppConfig({
     'pages/home/index',
     'pages/lineups/index',
     'pages/detail/index',
+    'pages/contribute/index',
     'pages/profile/index'
   ],
   window: {

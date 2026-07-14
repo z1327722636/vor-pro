@@ -37,7 +37,7 @@ class Lineup(Base):
     landing_y: Mapped[float | None] = mapped_column(Float)
 
     source_type: Mapped[LineupSource] = mapped_column(
-        Enum(LineupSource), default=LineupSource.AI_AUTO, index=True
+        Enum(LineupSource), default=LineupSource.USER_MANUAL_UPLOAD, index=True
     )
     correction_version: Mapped[int] = mapped_column(Integer, default=1)
     dedup_hash: Mapped[str] = mapped_column(String(128), index=True)

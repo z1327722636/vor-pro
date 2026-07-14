@@ -29,20 +29,6 @@ type ResolveState =
   | { status: "ready"; playableUrl: string; title?: string | null }
   | { status: "error"; message: string };
 
-type SubtitleSuggestion = {
-  timestamp_ms: number;
-  note: string;
-  confidence: number;
-  reason: string;
-  source_text: string;
-};
-
-type SubtitleState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "ready"; suggestions: SubtitleSuggestion[]; segmentsCount: number; usedAi: boolean }
-  | { status: "error"; message: string };
-
 type SubmitState =
   | { status: "idle" }
   | { status: "submitting"; message: string }
@@ -67,25 +53,6 @@ function buildFrameTimestamps(nodes: FrameNode[]): FrameMap {
 
 function optionLabel(options: readonly { value: string; label: string }[], value: string) {
   return options.find((item) => item.value === value)?.label ?? value;
-}
-
-function formatTimestampMs(milliseconds: number) {
-  const totalSeconds = Math.floor(milliseconds / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function createFrameNodeFromSuggestion(suggestion: SubtitleSuggestion, index: number): FrameNode {
-  const id = typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `subtitle-frame-${Date.now()}-${index}`;
-  return {
-    id,
-    timestampMs: suggestion.timestamp_ms,
-    note: suggestion.note,
-    annotations: []
-  };
 }
 
 function buildDraftSummary(form: LineupBaseValue) {
@@ -237,7 +204,6 @@ export default function UploadContributionPage() {
   const router = useRouter();
   const search = useSearchParams();
   const initialVideoUrl = search.get("videoUrl") ?? "";
-  const jobId = search.get("jobId");
   const correctFromLineupId = search.get("correctFromLineupId");
   const nextStepRef = useRef(1);
   const nextDraftRef = useRef(1);
@@ -252,7 +218,6 @@ export default function UploadContributionPage() {
   const [activeDraftId, setActiveDraftId] = useState("lineup-1");
   const [videoError, setVideoError] = useState("");
   const [resolveState, setResolveState] = useState<ResolveState>({ status: "idle" });
-  const [subtitleState, setSubtitleState] = useState<SubtitleState>({ status: "idle" });
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
 
   useEffect(() => {
@@ -418,7 +383,6 @@ export default function UploadContributionPage() {
       return;
     }
     clearLineupPreview();
-    setSubtitleState({ status: "idle" });
     setResolveState({ status: "loading" });
     try {
       const response = await fetch(`${API_BASE_URL}/api/manual/external-video/resolve`, {
@@ -457,81 +421,6 @@ export default function UploadContributionPage() {
     }
   }
 
-  async function suggestFramesFromSubtitles() {
-    const token = getAuthToken();
-    if (!token) return;
-    const trimmed = videoUrl.trim();
-    if (!trimmed) {
-      setSubtitleState({ status: "error", message: "请先输入视频 URL" });
-      return;
-    }
-
-    setSubtitleState({ status: "loading" });
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/manual/external-video/subtitle-suggestions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ source_url: trimmed, max_suggestions: 12 })
-      });
-      if (!response.ok) {
-        const detail = await response
-          .json()
-          .then((data) => (data && typeof data.detail === "string" ? data.detail : ""))
-          .catch(() => "");
-        setSubtitleState({ status: "error", message: detail || `字幕解析失败（HTTP ${response.status}）` });
-        return;
-      }
-      const data = (await response.json()) as {
-        segments_count: number;
-        suggestions: SubtitleSuggestion[];
-        used_ai: boolean;
-      };
-      setSubtitleState({
-        status: "ready",
-        suggestions: data.suggestions,
-        segmentsCount: data.segments_count,
-        usedAi: data.used_ai
-      });
-    } catch (error) {
-      setSubtitleState({ status: "error", message: error instanceof Error ? error.message : "字幕解析请求异常" });
-    }
-  }
-
-  function applySubtitleSuggestions(suggestions: SubtitleSuggestion[]) {
-    if (!activeDraft || suggestions.length === 0) return;
-    const existing = new Set(activeDraft.frameNodes.map((node) => node.timestampMs));
-    const nodes = suggestions
-      .filter((suggestion) => !existing.has(suggestion.timestamp_ms))
-      .map(createFrameNodeFromSuggestion);
-    if (nodes.length === 0) return;
-    updateActiveDraft({
-      frameNodes: [...activeDraft.frameNodes, ...nodes],
-      savedLineupId: undefined
-    });
-  }
-
-  async function pollJobUntilDone(sessionId: number, token: string): Promise<number | null> {
-    const deadline = Date.now() + 60_000; // 抽帧通常 < 5s，最多等 60s
-    while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const response = await fetch(`${API_BASE_URL}/api/jobs/${sessionId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store"
-      });
-      if (!response.ok) continue;
-      const job = (await response.json()) as {
-        status: string;
-        error_message?: string | null;
-        result?: { lineup_id?: number } | null;
-      };
-      if (job.status === "done") return job.result?.lineup_id ?? null;
-      if (job.status === "failed") {
-        throw new Error(job.error_message || "抽帧任务失败");
-      }
-    }
-    throw new Error("抽帧任务超时，请稍后到 Lineup 列表查看");
-  }
-
   async function submitVideoFrames(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const token = getAuthToken();
@@ -542,7 +431,7 @@ export default function UploadContributionPage() {
       return;
     }
     if (resolveState.status !== "ready" && !correctFromLineupId) {
-      setVideoError("请先点击“解析视频”，等播放器就绪后再提交");
+      setVideoError('请先点击「解析视频」，等播放器就绪后再提交');
       return;
     }
     if (activeDraft.frameNodes.length === 0) {
@@ -554,7 +443,7 @@ export default function UploadContributionPage() {
 
     const nodes = activeDraft.frameNodes;
     if (hasDuplicateTimestamps(nodes)) {
-      setVideoError("当前 Lineup 有多个节点停在同一时间点。请分别拖动/播放到不同画面后，用“更新”或重新添加节点。");
+      setVideoError('当前 Lineup 有多个节点停在同一时间点。请分别拖动/播放到不同画面后，用「更新」或重新添加节点。');
       setSubmitState({ status: "idle" });
       return;
     }
@@ -585,6 +474,7 @@ export default function UploadContributionPage() {
     }
 
     const payload = {
+      source_url: videoUrl || null,
       timestamps: buildFrameTimestamps(nodes),
       form: {
         ...activeDraft.form,
@@ -597,59 +487,33 @@ export default function UploadContributionPage() {
         landing_y: activeDraft.minimap.landing.y
       },
       frame_nodes: frameNodes,
-      regenerate_ai_description: false
     };
 
-    let sessionId: number | null = null;
-    let path = correctFromLineupId
+    const path = correctFromLineupId
       ? `/api/lineups/${correctFromLineupId}/corrections`
-      : `/api/manual/video-sessions/${jobId ?? ""}/submit`;
-
-    if (!correctFromLineupId && !jobId) {
-      const sessionResponse = await fetch(`${API_BASE_URL}/api/manual/video-sessions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ source_url: videoUrl || null })
-      });
-      if (!sessionResponse.ok) {
-        setSubmitState({ status: "error", message: `创建会话失败（HTTP ${sessionResponse.status}）` });
-        return;
-      }
-      const session = (await sessionResponse.json()) as { session_id: number };
-      sessionId = session.session_id;
-      path = `/api/manual/video-sessions/${session.session_id}/submit`;
-    } else if (jobId) {
-      sessionId = Number(jobId);
-    }
-
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-      const detail = await response
-        .json()
-        .then((data) => (data && typeof data.detail === "string" ? data.detail : ""))
-        .catch(() => "");
-      setSubmitState({ status: "error", message: detail || `提交失败（HTTP ${response.status}）` });
-      return;
-    }
-    const data = (await response.json()) as { session_id?: number };
-    const polledId = data.session_id ?? sessionId;
-    if (polledId == null) {
-      setSubmitState({ status: "error", message: "未拿到会话 ID，无法跟踪任务" });
-      return;
-    }
+      : "/api/manual/video/submit";
 
     setSubmitState({ status: "submitting", message: "抽帧中，请稍候..." });
     try {
-      const lineupId = await pollJobUntilDone(polledId, token);
-      updateActiveDraft({ savedLineupId: lineupId ?? undefined });
-      if (lineupId) openLineupPreview(lineupId);
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const detail = await response
+          .json()
+          .then((data) => (data && typeof data.detail === "string" ? data.detail : ""))
+          .catch(() => "");
+        throw new Error(detail || `提交失败（HTTP ${response.status}）`);
+      }
+      const data = (await response.json()) as { id: number };
+      const lineupId = data.id;
+      updateActiveDraft({ savedLineupId: lineupId });
+      openLineupPreview(lineupId);
       setSubmitState({
         status: "success",
-        message: lineupId ? `已保存为 Lineup #${lineupId}，已在下方生成预览，可以继续标下一个。` : "已保存，可以继续标下一个。"
+        message: `已保存为 Lineup #${lineupId}，已在下方生成预览，可以继续标下一个。`
       });
     } catch (error) {
       setSubmitState({
@@ -799,7 +663,7 @@ export default function UploadContributionPage() {
             <div>
               <h2 className="text-xl font-bold text-valorant-text">视频解析关键帧</h2>
               <p className="mt-1 text-sm text-valorant-muted">
-                贴入 B 站等视频页 URL，点击“解析视频”等待后端下载完成；播放器就绪后按顺序添加任意数量的帧节点。
+                贴入 B 站等视频页 URL，点击"解析视频"等待后端下载完成；播放器就绪后按顺序添加任意数量的帧节点。
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -808,7 +672,6 @@ export default function UploadContributionPage() {
                 onChange={(event) => {
                   setVideoUrl(event.currentTarget.value);
                   clearLineupPreview();
-                  setSubtitleState({ status: "idle" });
                   if (resolveState.status !== "idle") setResolveState({ status: "idle" });
                 }}
                 className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-valorant-text outline-none placeholder:text-valorant-muted"
@@ -839,62 +702,8 @@ export default function UploadContributionPage() {
             )}
             {resolveState.status === "ready" && (
               <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-                视频已就绪，暂停到目标画面后点“添加当前帧”{resolveState.title ? <span className="mt-1 block line-clamp-1 text-xs text-emerald-200/80">{resolveState.title}</span> : null}
+                视频已就绪，暂停到目标画面后点"添加当前帧"{resolveState.title ? <span className="mt-1 block line-clamp-1 text-xs text-emerald-200/80">{resolveState.title}</span> : null}
               </p>
-            )}
-
-            {resolveState.status === "ready" && (
-              <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-valorant-text">AI 字幕定位关键帧</h3>
-                    <p className="mt-1 text-xs leading-5 text-valorant-muted">
-                      先解析字幕时间轴，找站位、瞄点、投掷和落点相关片段，再把时间点填成帧节点。
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={suggestFramesFromSubtitles}
-                    disabled={subtitleState.status === "loading"}
-                    className="shrink-0 cursor-pointer rounded-xl border border-valorant-blue/40 px-4 py-2 text-sm font-bold text-valorant-blue hover:shadow-blueNeon disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {subtitleState.status === "loading" ? "解析字幕中…" : "用字幕找关键帧"}
-                  </button>
-                </div>
-
-                {subtitleState.status === "error" ? (
-                  <p className="mt-3 rounded-xl border border-valorant-red/30 bg-valorant-red/10 px-3 py-2 text-xs text-valorant-red">{subtitleState.message}</p>
-                ) : null}
-
-                {subtitleState.status === "ready" ? (
-                  <div className="mt-3 flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-valorant-muted">
-                      <span>已读取 {subtitleState.segmentsCount} 段字幕，{subtitleState.usedAi ? "AI" : "规则"} 给出 {subtitleState.suggestions.length} 个候选。</span>
-                      {subtitleState.suggestions.length > 0 ? (
-                        <button type="button" onClick={() => applySubtitleSuggestions(subtitleState.suggestions)} className="font-bold text-valorant-red hover:text-white">
-                          填入当前 Lineup
-                        </button>
-                      ) : null}
-                    </div>
-                    {subtitleState.suggestions.length > 0 ? (
-                      <div className="grid gap-2 md:grid-cols-2">
-                        {subtitleState.suggestions.map((suggestion, index) => (
-                          <article key={`${suggestion.timestamp_ms}-${index}`} className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-bold text-valorant-red">{formatTimestampMs(suggestion.timestamp_ms)}</span>
-                              <span className="text-valorant-muted">{Math.round(suggestion.confidence * 100)}%</span>
-                            </div>
-                            <p className="mt-2 line-clamp-2 text-valorant-text">{suggestion.note}</p>
-                            <p className="mt-1 line-clamp-1 text-valorant-muted">{suggestion.reason}</p>
-                          </article>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-valorant-muted">字幕里没有明显的站位、瞄准或投掷描述，建议继续手动取帧。</p>
-                    )}
-                  </div>
-                ) : null}
-              </section>
             )}
 
             {canUseVideoWorkspace && activeDraft && (

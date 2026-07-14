@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, auth, jobs, lineups, manual, social, videos, ws
+from app.api import admin, auth, lineups, manual, social, videos
 from app.config import get_settings
 from app.logging import configure_logging
 from app.services.admin_seed import ensure_admin_account
@@ -47,12 +47,10 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
-app.include_router(jobs.router, prefix="/api/jobs", tags=["jobs"])
 app.include_router(lineups.router, prefix="/api/lineups", tags=["lineups"])
 app.include_router(manual.router, prefix="/api", tags=["manual"])
 app.include_router(social.router, prefix="/api/lineups", tags=["social"])
 app.include_router(videos.router, prefix="/api/videos", tags=["videos"])
-app.include_router(ws.router, prefix="/api/ws", tags=["websocket"])
 
 
 @app.get("/healthz")

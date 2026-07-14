@@ -45,11 +45,22 @@ class ManualLineupForm(BaseModel):
     landing_y: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
+class ManualImageSubmit(BaseModel):
+    image_base64: str = Field(min_length=1)
+    filename: str | None = Field(default=None, max_length=255)
+    note: str = Field(default="", max_length=1200)
+
+
+class ManualJsonUploadRequest(BaseModel):
+    form: ManualLineupForm
+    images: list[ManualImageSubmit] = Field(min_length=1, max_length=20)
+
+
 class VideoFrameSubmit(BaseModel):
+    source_url: str | None = Field(default=None, max_length=2000)
     timestamps: FrameTimestamps
     form: ManualLineupForm
     frame_nodes: list[FrameNodeSubmit] = Field(default_factory=list, max_length=20)
-    regenerate_ai_description: bool = False
 
 
 class CorrectionSessionResponse(BaseModel):

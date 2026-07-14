@@ -1,9 +1,34 @@
 .login-guard {
-  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  text-align: center;
+  border-radius: var(--vor-radius-lg);
+  background: var(--vor-bg-surface);
+  border: 2px dashed var(--vor-border);
+  margin-bottom: var(--vor-space-xl);
+}
+
+.login-guard__icon { margin-bottom: var(--vor-space-md); }
+
+.login-guard__lock {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.login-guard__text {
+  font-size: var(--vor-font-sm);
+  color: var(--vor-text-tertiary);
+  margin-bottom: var(--vor-space-lg);
 }
 
 .login-guard__button {
-  background: #ff4655;
+  width: 240px;
+  background: var(--vor-brand);
   color: #fff;
   font-weight: 700;
+  font-size: var(--vor-font-md);
+  border-radius: var(--vor-radius-sm);
+  box-shadow: 0 6px 20px rgba(255, 70, 85, 0.3);
 }

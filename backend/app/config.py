@@ -29,10 +29,6 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://vor:vor_password@localhost:5432/vor"
     redis_url: str = "redis://localhost:6379/0"
-    celery_broker_url: str = "redis://localhost:6379/1"
-    celery_result_backend: str = "redis://localhost:6379/2"
-    worker_enqueue_enabled: bool = False
-    max_auto_triplets_per_job: int = Field(default=0, ge=0)
 
     minio_endpoint: str = "localhost:9000"
     minio_public_endpoint: str = "localhost:9000"
@@ -41,10 +37,6 @@ class Settings(BaseSettings):
     minio_bucket: str = "lineup-assets"
     minio_secure: bool = False
 
-    litellm_model: str = "qwen/qwen2.5-vl-72b-instruct"
-    dashscope_api_key: str | None = None
-    openai_api_key: str | None = None
-    douyin_api_base_url: str | None = None
     bilibili_sessdata: str | None = None
 
 

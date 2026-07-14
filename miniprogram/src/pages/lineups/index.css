@@ -1,11 +1,121 @@
-.lineups-more {
-  margin: 20px 0 40px;
-  background: #152237;
-  color: #edf4ff;
+.lineups-page {
+  padding-top: var(--vor-space-lg);
 }
 
-.lineups-empty {
-  padding: 80px 0;
+.lineups-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: var(--vor-space-lg);
+}
+
+.lineups-header__title {
+  display: block;
+  font-size: var(--vor-font-2xl);
+  line-height: 1.1;
+  font-weight: 900;
+  color: #fff;
+}
+
+.lineups-header__desc {
+  display: block;
+  margin-top: 10px;
+  font-size: var(--vor-font-xs);
+  line-height: 1.5;
+  color: var(--vor-text-muted);
+}
+
+.lineups-header__submit {
+  flex-shrink: 0;
+  min-width: 112px;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: var(--vor-brand);
+  color: #fff;
+  font-size: var(--vor-font-xs);
+  font-weight: 800;
+  box-shadow: 0 14px 30px rgba(255, 70, 85, 0.22);
+}
+
+.lineups-filter-card {
+  margin-bottom: var(--vor-space-lg);
+  padding: 20px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 18px 46px rgba(0, 0, 0, 0.18);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+  padding: 0 12px 0 22px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.search-bar__input {
+  flex: 1;
+  min-width: 0;
+  height: 64px;
+  font-size: var(--vor-font-sm);
+  color: var(--vor-text-primary);
+}
+
+.search-bar__placeholder {
+  color: var(--vor-text-muted);
+}
+
+.search-bar__button {
+  width: 136px;
+  height: 58px;
+  line-height: 58px;
+  margin: 0;
+  border-radius: 18px;
+  background: var(--vor-brand);
+  color: #fff;
+  font-size: var(--vor-font-xs);
+  font-weight: 800;
+}
+
+.search-bar__button::after {
+  border: 0;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.filter-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: var(--vor-font-xs);
+  color: var(--vor-text-muted);
+}
+
+.filter-summary__clear {
+  color: var(--vor-brand);
+  font-weight: 800;
+}
+
+.load-more-hint {
+  padding: 40px 0;
   text-align: center;
-  color: #8ea0b8;
+  font-size: var(--vor-font-sm);
+  color: var(--vor-text-muted);
 }

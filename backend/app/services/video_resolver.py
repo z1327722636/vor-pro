@@ -14,11 +14,14 @@ FastAPI 已挂载的 /uploads 静态路由暴露。
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import re
+import socket
 from dataclasses import dataclass
 from hashlib import sha1
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from loguru import logger
 
@@ -41,6 +44,47 @@ class ResolvedVideo:
 
 _BVID_RE = re.compile(r"(BV[0-9A-Za-z]{10})")
 _PLAYABLE_SUFFIXES = {".mp4", ".webm", ".mkv", ".m4v", ".mov"}
+_BLOCKED_FIRST_OCTETS = {9, 10, 11, 21, 30}
+
+
+def _is_blocked_ip(address: str) -> bool:
+    ip = ipaddress.ip_address(address)
+    if (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        return True
+    if ip.version == 4 and int(str(ip).split(".", 1)[0]) in _BLOCKED_FIRST_OCTETS:
+        return True
+    return False
+
+
+def _validate_public_video_url(source_url: str) -> None:
+    parsed = urlparse(source_url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("只支持 http/https 视频链接")
+    if not parsed.hostname:
+        raise ValueError("视频链接缺少域名")
+    hostname = parsed.hostname.strip().lower().rstrip(".")
+    if hostname in {"localhost", "localhost.localdomain"}:
+        raise ValueError("不允许解析本机或内网地址")
+    try:
+        if _is_blocked_ip(hostname):
+            raise ValueError("不允许解析本机或内网地址")
+    except ValueError:
+        if re.fullmatch(r"[0-9a-fA-F:.]+", hostname):
+            raise
+    try:
+        addresses = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise ValueError("视频链接域名无法解析") from exc
+    for item in addresses:
+        if _is_blocked_ip(item[4][0]):
+            raise ValueError("不允许解析本机或内网地址")
 
 
 def _cache_key(source_url: str) -> str:
@@ -159,6 +203,7 @@ async def resolve_external_video(source_url: str) -> ResolvedVideo:
     source_url = source_url.strip()
     if not source_url:
         raise ValueError("source_url is empty")
+    await asyncio.to_thread(_validate_public_video_url, source_url)
     return await asyncio.to_thread(_resolve_blocking, source_url)
 
 
