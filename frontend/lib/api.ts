@@ -10,7 +10,7 @@ export type LineupStep = {
 
 export type CurrentUser = {
   id: number;
-  email: string;
+  email?: string | null;
   is_admin: boolean;
 };
 
@@ -40,6 +40,9 @@ export type Lineup = {
   likes_count: number;
   reports_count: number;
   is_hidden: boolean;
+  is_favorited?: boolean;
+  is_liked?: boolean;
+  can_edit?: boolean;
   created_at: string;
 };
 

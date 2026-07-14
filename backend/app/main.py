@@ -26,10 +26,13 @@ app = FastAPI(title="Valorant Lineup Hunter API", version="0.1.0", lifespan=life
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 UPLOAD_ROOT = PROJECT_ROOT / "storage" / "uploads"
 FRAME_ROOT = PROJECT_ROOT / "storage" / "frames"
+MAPS_ROOT = PROJECT_ROOT / "frontend" / "public" / "assets" / "valorant" / "maps"
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 FRAME_ROOT.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_ROOT), name="uploads")
 app.mount("/frames", StaticFiles(directory=FRAME_ROOT), name="frames")
+if MAPS_ROOT.is_dir():
+    app.mount("/maps", StaticFiles(directory=MAPS_ROOT), name="maps")
 
 app.add_middleware(
     CORSMiddleware,

@@ -2,7 +2,10 @@ import Taro from '@tarojs/taro'
 
 export const TOKEN_STORAGE_KEY = 'vor_access_token'
 
-const DEFAULT_API_BASE_URL = 'http://localhost:8000/api'
+// WeChat Mini Program <image> rejects http:// sources, so the default API
+// base must be HTTPS. Run the backend with `bash scripts/dev-backend-https.sh`
+// and (for the simulator) enable "skip domain check" in DevTools.
+const DEFAULT_API_BASE_URL = 'https://localhost:8443/api'
 
 export function getApiBaseUrl(): string {
   return (process.env.TARO_APP_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/$/, '')

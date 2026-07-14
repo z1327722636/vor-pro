@@ -3,7 +3,12 @@ import Taro from '@tarojs/taro'
 import { apiRequest, setStoredToken } from './api'
 import type { TokenResponse, UserProfile } from './types'
 
-export async function loginWithWechat(): Promise<TokenResponse> {
+type WechatLinkCredentials = {
+  email: string
+  password: string
+}
+
+export async function loginWithWechat(link?: WechatLinkCredentials): Promise<TokenResponse> {
   const loginResult = await Taro.login()
   if (!loginResult.code) {
     throw new Error('微信登录未返回 code')
@@ -11,7 +16,19 @@ export async function loginWithWechat(): Promise<TokenResponse> {
 
   const token = await apiRequest<TokenResponse>('/auth/wechat-login', {
     method: 'POST',
-    data: { code: loginResult.code },
+    data: link
+      ? { code: loginResult.code, link_email: link.email, link_password: link.password }
+      : { code: loginResult.code },
+    auth: false
+  })
+  setStoredToken(token.access_token)
+  return token
+}
+
+export async function loginWithEmail(email: string, password: string): Promise<TokenResponse> {
+  const token = await apiRequest<TokenResponse>('/auth/login', {
+    method: 'POST',
+    data: { email, password },
     auth: false
   })
   setStoredToken(token.access_token)

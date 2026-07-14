@@ -34,12 +34,13 @@ export type Lineup = {
   is_hidden: boolean
   is_favorited: boolean
   is_liked: boolean
+  can_edit: boolean
   created_at: string
 }
 
 export type UserProfile = {
   id: number
-  email: string
+  email?: string | null
   is_admin: boolean
 }
 

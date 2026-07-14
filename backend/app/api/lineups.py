@@ -49,7 +49,7 @@ async def create_lineup(payload: LineupCreate, db: DbSession, current_user: Curr
     db.add(lineup)
     await db.commit()
     await db.refresh(lineup)
-    return lineup_response(lineup)
+    return lineup_response(lineup, can_edit=True)
 
 
 @router.get("/mine", response_model=list[LineupResponse])
@@ -86,7 +86,7 @@ async def list_my_lineups(
         .offset(offset)
     )
     result = await db.execute(stmt)
-    return [lineup_response(item) for item in result.scalars().all()]
+    return [lineup_response(item, can_edit=True) for item in result.scalars().all()]
 
 
 @router.patch("/mine/bulk", response_model=dict[str, int])
@@ -123,7 +123,7 @@ async def read_my_lineup(lineup_id: int, db: DbSession, current_user: CurrentUse
     lineup = await get_lineup(db, lineup_id, include_hidden=True)
     if lineup is None or lineup.author_user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lineup not found")
-    return lineup_response(lineup)
+    return lineup_response(lineup, can_edit=True)
 
 
 @router.patch("/mine/{lineup_id}", response_model=LineupResponse)
@@ -142,7 +142,7 @@ async def update_my_lineup(
 
     await db.commit()
     await db.refresh(lineup)
-    return lineup_response(lineup)
+    return lineup_response(lineup, can_edit=True)
 
 
 @router.delete("/mine/{lineup_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -173,7 +173,12 @@ async def read_lineup(lineup_id: int, db: DbSession, current_user: OptionalCurre
         )
         is_liked = like.scalar_one_or_none() is not None
 
-    return lineup_response(lineup, is_favorited=is_favorited, is_liked=is_liked)
+    return lineup_response(
+        lineup,
+        is_favorited=is_favorited,
+        is_liked=is_liked,
+        can_edit=current_user is not None and lineup.author_user_id == current_user.id,
+    )
 
 
 @router.post("/{lineup_id}/favorite", status_code=status.HTTP_204_NO_CONTENT)

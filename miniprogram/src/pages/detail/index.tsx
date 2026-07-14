@@ -18,11 +18,6 @@ import {
 import type { Lineup, LineupStep } from '@/services/types'
 import './index.css'
 
-function markerStyle(x?: number | null, y?: number | null) {
-  if (x == null || y == null) return { display: 'none' }
-  return { left: `${x * 100}%`, top: `${y * 100}%` }
-}
-
 function getSteps(lineup: Lineup): LineupStep[] {
   if (lineup.steps?.length) return lineup.steps
   return [
@@ -110,89 +105,109 @@ export default function DetailPage() {
   const steps = getSteps(lineup)
   const current = steps[currentStep]
   const hasMinimap = lineup.minimap_x != null && lineup.minimap_y != null
+  const hasLanding = lineup.landing_x != null && lineup.landing_y != null
 
   return (
     <View className='safe-page detail-page'>
-      <View className='detail-gallery'>
+      {/* 1. 媒体主舞台：当前步骤的图 + 步骤切换器（沉浸式） */}
+      <View className='detail-stage'>
         {current?.image_path ? (
-          <Image className='detail-gallery__image' mode='aspectFill' src={resolveAssetUrl(current.image_path)} />
+          <Image className='detail-stage__image' mode='aspectFill' src={resolveAssetUrl(current.image_path)} />
         ) : (
-          <View className='detail-gallery__placeholder'><Text>暂无步骤图</Text></View>
+          <View className='detail-stage__placeholder'><Text>暂无步骤图</Text></View>
         )}
+        <View className='detail-stage__topbar'>
+          <Text className='detail-stage__source'>{getSourceLabel(lineup.source_type)}</Text>
+        </View>
         {steps.length > 1 ? (
-          <View className='detail-gallery__tabs'>
+          <View className='detail-stage__steps'>
             {steps.map((step, index) => (
-              <View key={`${step.order_index}-${index}`} className={`detail-gallery__tab ${index === currentStep ? 'detail-gallery__tab--active' : ''}`} onClick={() => setCurrentStep(index)}>
-                <Text>{index + 1}</Text>
+              <View
+                key={`${step.order_index}-${index}`}
+                className={`detail-stage__step ${index === currentStep ? 'detail-stage__step--active' : ''}`}
+                onClick={() => setCurrentStep(index)}
+              >
+                <Text className='detail-stage__step-index'>{index + 1}</Text>
+                <Text className='detail-stage__step-title'>{step.title}</Text>
               </View>
             ))}
           </View>
         ) : null}
       </View>
 
-      <View className='detail-header-card'>
-        <View className='detail-header-card__top'>
-          <Text className='detail-header-card__source'>{getSourceLabel(lineup.source_type)}</Text>
-          <Text className='detail-header-card__site'>{getSideLabel(lineup.side)} · {getSiteLabel(lineup.site)}</Text>
+      {/* 2. 标题区：地图·特工（主锚点）+ chips 副信息 */}
+      <View className='detail-title-block'>
+        <Text className='detail-title-block__main'>{getMapLabel(lineup.map)} · {getAgentLabel(lineup.agent)}</Text>
+        <View className='detail-title-block__chips'>
+          <Text className='chip chip--ghost'>{getSideLabel(lineup.side)} · {getSiteLabel(lineup.site)}</Text>
+          <Text className='chip chip--ghost'>{getAbilityLabel(lineup.ability)}</Text>
+          <Text className='chip chip--ghost'>{getThrowLabel(lineup.throw_type)}</Text>
         </View>
-        <Text className='detail-header-card__title'>{getMapLabel(lineup.map)} · {getAgentLabel(lineup.agent)}</Text>
-        <Text className='detail-header-card__subtitle'>{getAbilityLabel(lineup.ability)} · {getThrowLabel(lineup.throw_type)}</Text>
       </View>
 
-      <LoginGuard>
-        <View className='detail-actions'>
-          <View className={`detail-actions__btn ${liked ? 'detail-actions__btn--active' : ''}`} onClick={toggleLike}>
-            <Text>{liked ? '已赞' : '点赞'} · {lineup.likes_count}</Text>
-          </View>
-          <View className={`detail-actions__btn ${favorited ? 'detail-actions__btn--active' : ''}`} onClick={toggleFavorite}>
-            <Text>{favorited ? '已收藏' : '收藏'}</Text>
-          </View>
-        </View>
-        {lineup.original_video_url ? (
-          <View className='detail-correction' onClick={() => Taro.navigateTo({ url: `/pages/contribute/index?mode=video&correctFromLineupId=${lineup.id}` })}>
-            <Text>手动矫正这个视频帧</Text>
-          </View>
-        ) : null}
-      </LoginGuard>
-
+      {/* 3. 当前步骤详情：标题 + 描述 */}
       {current ? (
-        <View className='detail-step-info'>
-          <Text className='detail-step-info__title'>步骤 {currentStep + 1} / {steps.length}: {current.title}</Text>
-          <Text className='detail-step-info__note'>{current.note || '暂无备注'}</Text>
+        <View className='detail-current-step'>
+          <View className='detail-current-step__head'>
+            <Text className='detail-current-step__index'>{currentStep + 1}</Text>
+            <Text className='detail-current-step__title'>{current.title}</Text>
+          </View>
+          {current.note ? <Text className='detail-current-step__note'>{current.note}</Text> : null}
         </View>
       ) : null}
 
-      <View className='section-title'>全部步骤</View>
-      <View className='detail-steps'>
-        {steps.map((step, index) => (
-          <View key={`${step.order_index}-${index}`} className={`detail-step ${index === currentStep ? 'detail-step--active' : ''}`} onClick={() => setCurrentStep(index)}>
-            <View className='detail-step__index'><Text>{index + 1}</Text></View>
-            <View className='detail-step__content'>
-              <Text className='detail-step__title'>{step.title || `步骤 ${index + 1}`}</Text>
-              <Text className='detail-step__note'>{step.note || '暂无备注'}</Text>
+      {/* 4. 小地图：仅当有标注时显示，缩略尺寸 */}
+      {hasMinimap || hasLanding ? (
+        <View className='detail-minimap'>
+          <View className='detail-minimap__head'>
+            <Text className='detail-minimap__title'>小地图定位</Text>
+            <Text className='detail-minimap__map'>{getMapLabel(lineup.map)}</Text>
+          </View>
+          <View className='detail-minimap__canvas'>
+            <View className='detail-minimap__grid' />
+            {hasMinimap ? (
+              <View className='detail-minimap__marker detail-minimap__marker--standing' style={{ left: `${lineup.minimap_x! * 100}%`, top: `${lineup.minimap_y! * 100}%` }}>
+                <Text className='detail-minimap__marker-dot' />
+                <Text className='detail-minimap__marker-label detail-minimap__marker-label--standing'>站位</Text>
+              </View>
+            ) : null}
+            {hasLanding ? (
+              <View className='detail-minimap__marker detail-minimap__marker--landing' style={{ left: `${lineup.landing_x! * 100}%`, top: `${lineup.landing_y! * 100}%` }}>
+                <Text className='detail-minimap__marker-dot' />
+                <Text className='detail-minimap__marker-label detail-minimap__marker-label--landing'>落点</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
+      {/* 5. 元数据：创建时间 + 复制原视频 */}
+      <View className='detail-meta'>
+        <Text className='detail-meta__item'>创建于 {new Date(lineup.created_at).toLocaleDateString('zh-CN')}</Text>
+        {lineup.original_video_url ? (
+          <Text className='detail-meta__link' onClick={() => Taro.setClipboardData({ data: lineup.original_video_url! })}>复制原视频链接</Text>
+        ) : null}
+      </View>
+
+      {/* 6. 修改点位（管理员/作者专属）：作为独立行 */}
+      {lineup.can_edit && lineup.original_video_url ? (
+        <View className='detail-correction' onClick={() => Taro.navigateTo({ url: `/pages/contribute/index?mode=video&correctFromLineupId=${lineup.id}` })}>
+          <Text>修改这个点位</Text>
+        </View>
+      ) : null}
+
+      {/* 7. 粘性操作栏：点赞 / 收藏 */}
+      <View className='detail-actionbar'>
+        <LoginGuard compact onLoginSuccess={load}>
+          <View className='detail-actionbar__inner'>
+            <View className={`detail-actionbar__btn ${liked ? 'detail-actionbar__btn--active' : ''}`} onClick={toggleLike}>
+              <Text>{liked ? '已赞' : '点赞'} · {lineup.likes_count}</Text>
+            </View>
+            <View className={`detail-actionbar__btn ${favorited ? 'detail-actionbar__btn--active' : ''}`} onClick={toggleFavorite}>
+              <Text>{favorited ? '已收藏' : '收藏'}</Text>
             </View>
           </View>
-        ))}
-      </View>
-
-      {hasMinimap ? (
-        <>
-          <View className='section-title'>小地图定位</View>
-          <View className='detail-minimap'>
-            <Text className='detail-minimap__map'>{getMapLabel(lineup.map)}</Text>
-            <View className='detail-minimap__grid' />
-            <View className='detail-minimap__marker detail-minimap__marker--standing' style={markerStyle(lineup.minimap_x, lineup.minimap_y)}><Text>站</Text></View>
-            <View className='detail-minimap__marker detail-minimap__marker--landing' style={markerStyle(lineup.landing_x, lineup.landing_y)}><Text>落</Text></View>
-          </View>
-        </>
-      ) : null}
-
-      <View className='divider' />
-      <View className='detail-footer'>
-        <Text className='detail-footer__item'>创建于 {new Date(lineup.created_at).toLocaleDateString('zh-CN')}</Text>
-        {lineup.original_video_url ? (
-          <Text className='detail-footer__link' onClick={() => Taro.setClipboardData({ data: lineup.original_video_url! })}>复制原视频链接</Text>
-        ) : null}
+        </LoginGuard>
       </View>
     </View>
   )

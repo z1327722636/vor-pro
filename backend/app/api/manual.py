@@ -231,7 +231,7 @@ async def manual_upload_json(
         saved_steps,
         LineupSource.USER_MANUAL_UPLOAD,
     )
-    return lineup_response(lineup)
+    return lineup_response(lineup, can_edit=True)
 
 
 @router.post(
@@ -279,7 +279,7 @@ async def manual_upload(
         lineup = await create_manual_lineup_with_steps(
             db, current_user.id, form, saved_steps, LineupSource.USER_MANUAL_UPLOAD,
         )
-        return lineup_response(lineup)
+        return lineup_response(lineup, can_edit=True)
 
     if not standing or not aim or not landing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请至少上传一张步骤图")
@@ -292,7 +292,7 @@ async def manual_upload(
         standing_path, aim_path, landing_path,
         LineupSource.USER_MANUAL_UPLOAD,
     )
-    return lineup_response(lineup)
+    return lineup_response(lineup, can_edit=True)
 
 
 # ─── 视频解析（手动选帧）─────────────────────────────────────
@@ -329,7 +329,7 @@ async def submit_video_frames(
     lineup = await _extract_and_create_lineup(
         db, current_user.id, payload.source_url, payload, LineupSource.USER_MANUAL_VIDEO,
     )
-    return lineup_response(lineup)
+    return lineup_response(lineup, can_edit=True)
 
 
 # ─── 矫正 ──────────────────────────────────────────────────
@@ -343,6 +343,8 @@ async def create_correction_session(
     lineup = await get_lineup(db, lineup_id)
     if lineup is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lineup not found")
+    if lineup.author_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只有创建人可以修改这个点位")
     fallback_timestamp = lineup.original_video_timestamp_ms or 0
     return CorrectionSessionResponse(
         video_url=lineup.original_video_url,
@@ -379,6 +381,8 @@ async def submit_correction(
     lineup = await get_lineup(db, lineup_id)
     if lineup is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lineup not found")
+    if lineup.author_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="只有创建人可以修改这个点位")
 
     source_url = payload.source_url or lineup.original_video_url
     if not source_url:
@@ -392,4 +396,4 @@ async def submit_correction(
     correction_version = (lineup.correction_version or 1) + 1
     lineup.correction_version = correction_version
     await db.commit()
-    return lineup_response(corrected)
+    return lineup_response(corrected, can_edit=True)

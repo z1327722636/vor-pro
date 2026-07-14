@@ -155,6 +155,7 @@ class LineupResponse(BaseModel):
     is_hidden: bool
     is_favorited: bool = False
     is_liked: bool = False
+    can_edit: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -205,7 +206,13 @@ def _legacy_steps(
     ]
 
 
-def lineup_response(lineup: Lineup, *, is_favorited: bool = False, is_liked: bool = False) -> LineupResponse:
+def lineup_response(
+    lineup: Lineup,
+    *,
+    is_favorited: bool = False,
+    is_liked: bool = False,
+    can_edit: bool = False,
+) -> LineupResponse:
     standing_frame = lineup.__dict__.get("standing_frame")
     aim_frame = lineup.__dict__.get("aim_frame")
     landing_frame = lineup.__dict__.get("landing_frame")
@@ -251,5 +258,6 @@ def lineup_response(lineup: Lineup, *, is_favorited: bool = False, is_liked: boo
         is_hidden=lineup.is_hidden,
         is_favorited=is_favorited,
         is_liked=is_liked,
+        can_edit=can_edit,
         created_at=lineup.created_at,
     )

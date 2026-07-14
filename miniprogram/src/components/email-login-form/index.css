@@ -1,0 +1,62 @@
+.email-login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.email-login-form--compact {
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.email-login-form__title {
+  display: block;
+  font-size: var(--vor-font-xs);
+  font-weight: 800;
+  color: var(--vor-text-secondary);
+  text-align: center;
+}
+
+.email-login-form--compact .email-login-form__title {
+  display: none;
+}
+
+.email-login-form__input {
+  height: 72px;
+  padding: 0 22px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.22);
+  color: var(--vor-text-primary);
+  font-size: var(--vor-font-sm);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.email-login-form--compact .email-login-form__input {
+  height: 56px;
+  padding: 0 18px;
+  border-radius: 16px;
+  font-size: var(--vor-font-xs);
+}
+
+.email-login-form__button {
+  height: 72px;
+  line-height: 72px;
+  margin: 0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: var(--vor-font-sm);
+  font-weight: 900;
+}
+
+.email-login-form--compact .email-login-form__button {
+  height: 56px;
+  line-height: 56px;
+  border-radius: 16px;
+  font-size: var(--vor-font-xs);
+}
+
+.email-login-form__button::after {
+  border: 0;
+}

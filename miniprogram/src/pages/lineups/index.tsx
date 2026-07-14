@@ -44,6 +44,7 @@ export default function LineupsPage() {
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [search, setSearch] = useState('')
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
   const loadingRef = useRef(false)
 
   const load = async (reset = true, nextFilters = filters, nextSearch = search) => {
@@ -140,15 +141,23 @@ export default function LineupsPage() {
           <Button className='search-bar__button' onClick={submitSearch}>搜索</Button>
         </View>
 
+        <View className='filter-toolbar'>
+          <Text className='filter-toolbar__title'>{filtersExpanded ? '全部筛选' : '快捷筛选'}</Text>
+          <View className='filter-toolbar__toggle' onClick={() => setFiltersExpanded((value) => !value)}>
+            <Text>{filtersExpanded ? '收起筛选' : '展开更多'}</Text>
+            <View className={`filter-toolbar__arrow ${filtersExpanded ? 'filter-toolbar__arrow--up' : ''}`} />
+          </View>
+        </View>
+
         <View className='filter-grid'>
           <NativePicker label='地图' value={filters.map} options={mapFilterOptions} onChange={(value) => updateFilter('map', value)} />
-          <NativePicker label='点位' value={filters.site} options={siteFilterOptions} onChange={(value) => updateFilter('site', value)} />
-          <NativePicker label='阵营' value={filters.side} options={sideFilterOptions} onChange={(value) => updateFilter('side', value)} />
+          {filtersExpanded ? <NativePicker label='点位' value={filters.site} options={siteFilterOptions} onChange={(value) => updateFilter('site', value)} /> : null}
+          {filtersExpanded ? <NativePicker label='阵营' value={filters.side} options={sideFilterOptions} onChange={(value) => updateFilter('side', value)} /> : null}
           <NativePicker label='英雄' value={filters.agent} options={agentFilterOptions} onChange={(value) => updateFilter('agent', value)} />
-          <NativePicker label='技能' value={filters.ability} options={abilityFilterOptions} onChange={(value) => updateFilter('ability', value)} />
-          <NativePicker label='投掷' value={filters.throw_type} options={throwFilterOptions} onChange={(value) => updateFilter('throw_type', value)} />
-          <NativePicker label='来源' value={filters.source_type} options={sourceFilterOptions} onChange={(value) => updateFilter('source_type', value)} />
-          <NativePicker label='排序' value={filters.sort || 'latest'} options={sortFilterOptions} onChange={(value) => updateFilter('sort', value)} />
+          {filtersExpanded ? <NativePicker label='技能' value={filters.ability} options={abilityFilterOptions} onChange={(value) => updateFilter('ability', value)} /> : null}
+          {filtersExpanded ? <NativePicker label='投掷' value={filters.throw_type} options={throwFilterOptions} onChange={(value) => updateFilter('throw_type', value)} /> : null}
+          {filtersExpanded ? <NativePicker label='来源' value={filters.source_type} options={sourceFilterOptions} onChange={(value) => updateFilter('source_type', value)} /> : null}
+          {filtersExpanded ? <NativePicker label='排序' value={filters.sort || 'latest'} options={sortFilterOptions} onChange={(value) => updateFilter('sort', value)} /> : null}
         </View>
 
         {activeCount > 0 ? (

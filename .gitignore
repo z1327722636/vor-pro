@@ -29,5 +29,8 @@ redis-data/
 .codebuddy/plans/
 .tmp-*
 
+# Local dev TLS cert (regenerate with backend/scripts/generate-dev-cert.sh)
+backend/certs/
+
 # IDE
 .DS_Store

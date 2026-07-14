@@ -45,8 +45,12 @@ class WechatClient:
 
         appid = (self._settings.wechat_appid or "").strip()
         secret = (self._settings.wechat_secret or "").strip()
-        if self._settings.wechat_login_mock or not appid or not secret:
+        if self._settings.wechat_login_mock:
+            if self._settings.app_env.lower() != "development":
+                raise WechatLoginError("WeChat mock login is only available in development")
             return self._mock_session(normalized_code)
+        if not appid or not secret:
+            raise WechatLoginError("WeChat login credentials are not configured")
 
         params = {
             "appid": appid,
@@ -69,7 +73,11 @@ class WechatClient:
         errcode = int(data.get("errcode", 0) or 0)
         if errcode != 0:
             errmsg = str(data.get("errmsg", "unknown error"))
-            logger.warning("WeChat code exchange rejected code: errcode={}, errmsg={}", errcode, errmsg)
+            logger.warning(
+                "WeChat code exchange rejected code: errcode={}, errmsg={}",
+                errcode,
+                errmsg,
+            )
             raise WechatLoginError("WeChat rejected the login code")
 
         openid = str(data.get("openid") or "").strip()
@@ -84,7 +92,15 @@ class WechatClient:
             unionid=str(unionid) if unionid else None,
         )
 
-    @staticmethod
-    def _mock_session(code: str) -> WechatSession:
+    def _mock_session(self, code: str) -> WechatSession:
+        configured_openid = (self._settings.wechat_mock_openid or "").strip()
+        configured_unionid = (self._settings.wechat_mock_unionid or "").strip()
+        if configured_openid:
+            return WechatSession(
+                openid=configured_openid,
+                session_key=None,
+                unionid=configured_unionid or None,
+            )
+
         digest = sha256(code.encode("utf-8")).hexdigest()
         return WechatSession(openid=f"mock_{digest[:32]}", session_key=None, unionid=None)

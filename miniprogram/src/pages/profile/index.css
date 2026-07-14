@@ -110,6 +110,15 @@
   color: #fff;
 }
 
+.profile-card__login-divider {
+  display: block;
+  width: 100%;
+  margin: 22px 0 14px;
+  font-size: var(--vor-font-xs);
+  color: var(--vor-text-muted);
+  text-align: center;
+}
+
 .profile-card__primary {
   margin-top: 0;
 }

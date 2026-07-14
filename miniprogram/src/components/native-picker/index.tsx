@@ -35,7 +35,7 @@ export function NativePicker({ label, value = '', options, placeholder = '请选
           <Text className={selected ? 'native-picker__value' : 'native-picker__placeholder'}>
             {selected?.label || placeholder}
           </Text>
-          <Text className='native-picker__arrow'>⌄</Text>
+          <View className='native-picker__arrow' />
         </View>
       </Picker>
     </View>

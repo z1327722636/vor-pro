@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -211,7 +211,12 @@ export function Dropdown({
           {selectedOption?.iconSrc ? <img src={selectedOption.iconSrc} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" aria-hidden="true" /> : null}
           <span className="min-w-0 truncate">{selectedOption?.label ?? placeholder}</span>
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-valorant-muted transition group-hover:text-valorant-red ${isOpen ? "rotate-180 text-valorant-red" : ""}`} aria-hidden="true" />
+        <span
+          className={`h-2 w-2 shrink-0 border-b-2 border-r-2 border-current text-valorant-muted transition group-hover:text-valorant-red ${
+            isOpen ? "translate-y-0.5 rotate-[225deg] text-valorant-red" : "-translate-y-0.5 rotate-45"
+          }`}
+          aria-hidden="true"
+        />
       </button>
       {menu && typeof document !== "undefined" ? createPortal(menu, document.body) : null}
     </div>

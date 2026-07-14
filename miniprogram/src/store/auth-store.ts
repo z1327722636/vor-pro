@@ -1,7 +1,12 @@
 import { create } from 'zustand'
 
 import { getStoredToken, setStoredToken } from '@/services/api'
-import { getCurrentUser, loginWithWechat, logout as logoutService } from '@/services/auth'
+import {
+  getCurrentUser,
+  loginWithEmail as loginWithEmailService,
+  loginWithWechat,
+  logout as logoutService
+} from '@/services/auth'
 import type { UserProfile } from '@/services/types'
 
 type AuthState = {
@@ -9,6 +14,7 @@ type AuthState = {
   user: UserProfile | null
   loading: boolean
   login: () => Promise<void>
+  loginWithEmail: (email: string, password: string) => Promise<void>
   refreshProfile: () => Promise<void>
   logout: () => void
 }
@@ -21,6 +27,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true })
     try {
       const token = await loginWithWechat()
+      set({ token: token.access_token })
+      await get().refreshProfile()
+    } finally {
+      set({ loading: false })
+    }
+  },
+  loginWithEmail: async (email, password) => {
+    set({ loading: true })
+    try {
+      const token = await loginWithEmailService(email, password)
       set({ token: token.access_token })
       await get().refreshProfile()
     } finally {

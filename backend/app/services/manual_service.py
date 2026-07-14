@@ -95,6 +95,8 @@ async def create_manual_lineup_with_steps(
     source_type: LineupSource,
     original_video_url: str | None = None,
     original_video_timestamp_ms: int | None = None,
+    corrected_from_id: int | None = None,
+    correction_version: int = 1,
 ) -> Lineup:
     first_path = steps[0][0]
     dedup_raw = "|".join(

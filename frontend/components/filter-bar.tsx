@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Dropdown } from "@/components/dropdown";
 import { abilityOptions, agentOptions, mapOptions, sideOptions, siteOptions, sourceOptions, throwOptions } from "@/lib/labels";
@@ -16,16 +16,41 @@ const sortOptions = [
   { value: "latest", label: "最新发布" },
   { value: "popular", label: "点赞最多" }
 ];
+const COLLAPSED_FILTER_HEIGHT = 52;
 
 export default function FilterBar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const filterWrapRef = useRef<HTMLDivElement>(null);
   const [keyword, setKeyword] = useState(searchParams.get("q") ?? "");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [canExpandFilters, setCanExpandFilters] = useState(false);
 
   useEffect(() => {
     setKeyword(searchParams.get("q") ?? "");
+  }, [searchParams]);
+
+  useEffect(() => {
+    const node = filterWrapRef.current;
+    if (!node) return;
+
+    const updateOverflow = () => {
+      const hasOverflow = node.scrollHeight > COLLAPSED_FILTER_HEIGHT + 1;
+      setCanExpandFilters(hasOverflow);
+      if (!hasOverflow) setFiltersExpanded(false);
+    };
+
+    updateOverflow();
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(node);
+    window.addEventListener("resize", updateOverflow);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateOverflow);
+    };
   }, [searchParams]);
 
   const activeCount = useMemo(() => {
@@ -81,17 +106,38 @@ export default function FilterBar() {
           ) : null}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-          <Dropdown value={searchParams.get("map") ?? ""} options={mapFilterOptions} ariaLabel="按地图筛选" onValueChange={(value) => updateParam("map", value)} />
-          <Dropdown value={searchParams.get("site") ?? ""} options={siteFilterOptions} ariaLabel="按点位筛选" onValueChange={(value) => updateParam("site", value)} />
-          <Dropdown value={searchParams.get("side") ?? ""} options={sideFilterOptions} ariaLabel="按攻防方筛选" onValueChange={(value) => updateParam("side", value)} />
-          <Dropdown value={searchParams.get("agent") ?? ""} options={agentFilterOptions} ariaLabel="按英雄筛选" onValueChange={(value) => updateParam("agent", value)} />
-          <Dropdown value={searchParams.get("ability") ?? ""} options={abilityFilterOptions} ariaLabel="按道具筛选" onValueChange={(value) => updateParam("ability", value)} />
-          <Dropdown value={searchParams.get("throw_type") ?? ""} options={throwFilterOptions} ariaLabel="按投掷方式筛选" onValueChange={(value) => updateParam("throw_type", value)} />
-          <Dropdown value={searchParams.get("sort") ?? "latest"} options={sortOptions} ariaLabel="排序方式" onValueChange={(value) => updateParam("sort", value === "latest" ? "" : value)} />
+        <div className="flex items-start gap-3">
+          <div
+            ref={filterWrapRef}
+            className={`flex min-w-0 flex-1 flex-wrap gap-3 overflow-hidden transition-[max-height] duration-200 ${filtersExpanded ? "max-h-[520px]" : "max-h-[52px]"}`}
+          >
+            <Dropdown className="min-w-[180px] flex-[1_1_180px]" value={searchParams.get("map") ?? ""} options={mapFilterOptions} ariaLabel="按地图筛选" onValueChange={(value) => updateParam("map", value)} />
+            <Dropdown className="min-w-[180px] flex-[1_1_180px]" value={searchParams.get("site") ?? ""} options={siteFilterOptions} ariaLabel="按点位筛选" onValueChange={(value) => updateParam("site", value)} />
+            <Dropdown className="min-w-[180px] flex-[1_1_180px]" value={searchParams.get("side") ?? ""} options={sideFilterOptions} ariaLabel="按攻防方筛选" onValueChange={(value) => updateParam("side", value)} />
+            <Dropdown className="min-w-[180px] flex-[1_1_180px]" value={searchParams.get("agent") ?? ""} options={agentFilterOptions} ariaLabel="按英雄筛选" onValueChange={(value) => updateParam("agent", value)} />
+            <Dropdown className="min-w-[180px] flex-[1_1_180px]" value={searchParams.get("ability") ?? ""} options={abilityFilterOptions} ariaLabel="按道具筛选" onValueChange={(value) => updateParam("ability", value)} />
+            <Dropdown className="min-w-[180px] flex-[1_1_180px]" value={searchParams.get("throw_type") ?? ""} options={throwFilterOptions} ariaLabel="按投掷方式筛选" onValueChange={(value) => updateParam("throw_type", value)} />
+            <Dropdown className="min-w-[180px] flex-[1_1_180px]" value={searchParams.get("sort") ?? "latest"} options={sortOptions} ariaLabel="排序方式" onValueChange={(value) => updateParam("sort", value === "latest" ? "" : value)} />
+          </div>
+
+          {canExpandFilters ? (
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded((value) => !value)}
+              className="mt-1 flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-valorant-red/20 bg-valorant-red/10 px-4 py-2 text-sm font-bold text-valorant-red transition hover:border-valorant-red/50 hover:bg-valorant-red/15"
+            >
+              {filtersExpanded ? "收起" : "更多"}
+              <span
+                className={`h-2 w-2 border-b-2 border-r-2 border-current transition ${
+                  filtersExpanded ? "translate-y-0.5 rotate-[225deg]" : "-translate-y-0.5 rotate-45"
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+          ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-3">
           {sourceOptions.map((item) => {
             const selected = (searchParams.get("source_type") ?? "") === item.value;
             return (
@@ -99,7 +145,7 @@ export default function FilterBar() {
                 key={item.value || "all"}
                 type="button"
                 onClick={() => updateParam("source_type", item.value)}
-                className={`cursor-pointer rounded-full border px-4 py-2 text-sm transition ${
+                className={`h-10 shrink-0 cursor-pointer rounded-full border px-4 text-sm transition ${
                   selected ? "border-valorant-red bg-valorant-red/15 text-valorant-red shadow-neon" : "border-white/10 text-valorant-muted hover:border-valorant-red hover:text-valorant-text"
                 }`}
               >

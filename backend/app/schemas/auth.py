@@ -13,6 +13,8 @@ class LoginRequest(BaseModel):
 
 class WechatLoginRequest(BaseModel):
     code: str = Field(min_length=1, max_length=256)
+    link_email: EmailStr | None = None
+    link_password: str | None = Field(default=None, min_length=1, max_length=72)
 
 
 class TokenResponse(BaseModel):
@@ -22,5 +24,5 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    email: EmailStr
+    email: EmailStr | None = None
     is_admin: bool = False

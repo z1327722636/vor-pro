@@ -26,6 +26,7 @@ def upgrade() -> None:
     op.execute(
         "UPDATE frames SET source = 'USER_PICKED' WHERE source = 'AUTO'"
     )
+    op.execute("ALTER TABLE frames ALTER COLUMN source DROP DEFAULT")
     op.execute("ALTER TYPE framesource RENAME TO framesource_old")
     new_framesource = sa.Enum("USER_PICKED", "USER_UPLOADED", name="framesource")
     new_framesource.create(op.get_bind(), checkfirst=True)
@@ -42,6 +43,7 @@ def upgrade() -> None:
     op.execute(
         "UPDATE lineups SET source_type = 'USER_MANUAL_UPLOAD' WHERE source_type = 'AI_AUTO'"
     )
+    op.execute("ALTER TABLE lineups ALTER COLUMN source_type DROP DEFAULT")
     op.execute("ALTER TYPE lineupsource RENAME TO lineupsource_old")
     new_lineupsource = sa.Enum(
         "USER_MANUAL_UPLOAD", "USER_MANUAL_VIDEO", "USER_CORRECTED", name="lineupsource"

@@ -2,6 +2,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { Button, Text, View } from '@tarojs/components'
 import { useState } from 'react'
 
+import { EmailLoginForm } from '@/components/email-login-form'
 import { LineupCard } from '@/components/lineup-card'
 import { useAuthStore } from '@/store/auth-store'
 import { deleteMyLineup, listMyLineups, updateMyLineupVisibility } from '@/services/lineups'
@@ -93,6 +94,8 @@ export default function ProfilePage() {
             <Text className='profile-card__name'>未登录</Text>
             <Text className='profile-card__desc'>登录后可投稿、点赞、收藏和管理自己的点位。</Text>
             <Button className='profile-card__login' loading={loading} onClick={handleLogin}>微信一键登录</Button>
+            <Text className='profile-card__login-divider'>或使用邮箱登录</Text>
+            <EmailLoginForm onSuccess={loadData} />
           </>
         )}
       </View>

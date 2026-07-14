@@ -10,6 +10,38 @@
   margin-bottom: var(--vor-space-xl);
 }
 
+.login-guard--compact {
+  align-items: stretch;
+  gap: 0;
+  min-height: 76px;
+  padding: 12px 16px;
+  margin: 16px 0 0;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.login-guard__compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-guard__compact-copy {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--vor-font-xs);
+  color: var(--vor-text-tertiary);
+  text-align: left;
+}
+
+.login-guard__compact-link {
+  flex-shrink: 0;
+  font-size: var(--vor-font-xs);
+  font-weight: 800;
+  color: var(--vor-text-secondary);
+}
+
 .login-guard__icon { margin-bottom: var(--vor-space-md); }
 
 .login-guard__lock {
@@ -31,4 +63,26 @@
   font-size: var(--vor-font-md);
   border-radius: var(--vor-radius-sm);
   box-shadow: 0 6px 20px rgba(255, 70, 85, 0.3);
+}
+
+.login-guard__button--compact {
+  width: 148px;
+  height: 52px;
+  line-height: 52px;
+  margin: 0;
+  font-size: var(--vor-font-xs);
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.login-guard__button::after {
+  border: 0;
+}
+
+.login-guard__divider {
+  width: 100%;
+  margin: var(--vor-space-lg) 0;
+  font-size: var(--vor-font-xs);
+  color: var(--vor-text-muted);
+  text-align: center;
 }

@@ -22,7 +22,7 @@ export async function listLineups(filters: LineupFilters = {}): Promise<Lineup[]
 }
 
 export async function getLineup(id: number): Promise<Lineup> {
-  return apiRequest<Lineup>(`/lineups/${id}`, { auth: false })
+  return apiRequest<Lineup>(`/lineups/${id}`)
 }
 
 export async function listMyLineups(filters: LineupFilters = {}): Promise<Lineup[]> {

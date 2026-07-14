@@ -59,4 +59,61 @@ cd frontend && npm run typecheck && npm run lint
 cd backend && python3 -m ruff check app
 ```
 
+
+最短启动方式：Docker 一把起整个项目：
+
+bash
+cd /Users/zakikizou/CodeBuddy/vor-pro
+
+# 如果还没有 .env
+cp .env.example .env
+
+# 起 postgres / redis / minio / backend api / frontend web
+docker compose --profile app up --build
+访问：
+
+bash
+前端：http://localhost:2367
+后端：http://localhost:8000
+MinIO 控制台：http://localhost:9001
+如果你想本地开发分开起：
+
+bash
+cd /Users/zakikizou/CodeBuddy/vor-pro
+docker compose up -d postgres redis minio
+后端：
+
+bash
+cd /Users/zakikizou/CodeBuddy/vor-pro/backend
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+前端另开终端：
+
+bash
+cd /Users/zakikizou/CodeBuddy/vor-pro/frontend
+npm install
+npm run dev
+注意：backend/pyproject.toml 要求 Python >=3.11，你刚才用的是 3.10.13，建议后端用 python3.11。
 如果本机依赖缺失，先说明缺失项，不要用临时脚本绕过检查。
+
+## 小程序本地开发（重要：必须 HTTPS）
+
+微信小程序 `<image>` 组件从某次基线起直接拒绝 HTTP 源（不是域名校验问题，DevTools 勾"不校验合法域名"也拦不住），本地后端必须起 HTTPS。
+
+后端用脚本起 HTTPS：
+
+bash
+cd /Users/zakikizou/CodeBuddy/vor-pro
+bash scripts/dev-backend-https.sh
+# 首次运行会自动调用 backend/scripts/generate-dev-cert.sh 生成自签证书
+# 监听 https://localhost:8443
+小程序侧：
+1. `miniprogram/.env.example` 复制为 `.env`（按需改 `TARO_APP_API_BASE_URL`，默认 `https://localhost:8443/api`）
+2. `miniprogram/project.config.json` 里 `urlCheck: false`（自签证书需要）
+3. 微信开发者工具 → 详情 → 本地设置 → 勾选"不校验合法域名"
+4. 启动后 `https://localhost:8443/healthz` 应返回 `{"status":"ok"}`
+
+真机预览：自签证书不会被系统信任，必须用备案域名 + 正式证书，或临时关闭小程序后台的 request 域名校验。

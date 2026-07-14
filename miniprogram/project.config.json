@@ -4,7 +4,7 @@
   "description": "Valorant Lineup Hunter 小程序端",
   "appid": "touristappid",
   "setting": {
-    "urlCheck": true,
+    "urlCheck": false,
     "es6": true,
     "enhance": true,
     "postcss": true,
