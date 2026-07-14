@@ -1,0 +1,146 @@
+.annot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+/* === Toolbar === */
+.annot-toolbar {
+  padding: 16px 20px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  background: #0a0f18;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.annot-toolbar__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.annot-toolbar__row + .annot-toolbar__row {
+  margin-top: 12px;
+}
+
+.annot-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  padding: 0 20px;
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--vor-text-secondary, #c0cddf);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.annot-tool-btn--active {
+  background: var(--vor-brand, #ff4655);
+  color: #fff;
+  border-color: var(--vor-brand, #ff4655);
+}
+
+.annot-tool-btn--ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--vor-text-muted, #546785);
+  font-size: 20px;
+}
+
+/* === Color dots === */
+.annot-colors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+}
+
+.annot-color-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+}
+
+.annot-color-dot--active {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+  transform: scale(1.12);
+}
+
+/* === Canvas wrapper === */
+.annot-canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #050912;
+}
+
+.annot-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--vor-text-muted, #546785);
+  font-size: 24px;
+  z-index: 1;
+}
+
+.annot-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.annot-count-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+}
+
+/* === Actions === */
+.annot-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: #0a0f18;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.annot-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72px;
+  border-radius: 18px;
+  font-size: 26px;
+  font-weight: 900;
+}
+
+.annot-action-btn--cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--vor-text-muted, #546785);
+}
+
+.annot-action-btn--save {
+  background: var(--vor-brand, #ff4655);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(255, 70, 85, 0.28);
+}

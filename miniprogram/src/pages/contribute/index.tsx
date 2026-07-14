@@ -1,8 +1,9 @@
 import Taro, { useLoad, useRouter } from '@tarojs/taro'
-import { Button, Image, Input, Slider, Text, Textarea, Video, View } from '@tarojs/components'
-import { useState } from 'react'
+import { Button, Image, Input, Text, Textarea, Video, View } from '@tarojs/components'
+import { useEffect, useRef, useState } from 'react'
 
 import { LoginGuard } from '@/components/login-guard'
+import { ImageAnnotationEditor } from '@/components/image-annotation-editor'
 import { NativePicker } from '@/components/native-picker'
 import { resolveAssetUrl } from '@/services/api'
 import {
@@ -20,6 +21,7 @@ import {
 import {
   agentAbilityMap,
   agentOptions,
+  getMapLabel,
   mapOptions,
   sideOptions,
   siteOptions,
@@ -35,6 +37,10 @@ type Coords = {
   standing: { x: number | null; y: number | null }
   landing: { x: number | null; y: number | null }
 }
+
+type MinimapRect = { left: number; top: number; width: number; height: number }
+
+const MINIMAP_KEY_STEP = 0.005 // 方向键微调步长（0.5% 归一化）
 type VideoNode = { id: string; label: string; timestampMs: number; note: string }
 
 const MAX_IMAGES = 6
@@ -104,47 +110,259 @@ function BaseFields({ value, onChange }: { value: LineupBaseValue; onChange: (va
   )
 }
 
-function CoordinatePicker({ value, onChange }: { value: Coords; onChange: (value: Coords) => void }) {
-  const updatePoint = (key: CoordKey, axis: 'x' | 'y', sliderValue: number) => {
-    onChange({ ...value, [key]: { ...value[key], [axis]: sliderValue / 100 } })
-  }
-  const ensurePoint = (key: CoordKey) => {
-    onChange({ ...value, [key]: { x: value[key].x ?? 0.5, y: value[key].y ?? 0.5 } })
-  }
-  const clearPoint = (key: CoordKey) => {
-    onChange({ ...value, [key]: { x: null, y: null } })
+function MinimapPicker({ map, value, onChange }: { map: string; value: Coords; onChange: (value: Coords) => void }) {
+  const [activePoint, setActivePoint] = useState<CoordKey>('standing')
+  const [imageLoaded, setImageLoaded] = useState(false)
+  // 用 state 而不是 ref：state 变化能驱动 marker 重新定位
+  const [canvasRect, setCanvasRect] = useState<MinimapRect | null>(null)
+  const [mapImgRect, setMapImgRect] = useState<MinimapRect | null>(null)
+  const [mapNatural, setMapNatural] = useState<{ width: number; height: number } | null>(null)
+
+  const mapSrc = resolveAssetUrl(`/maps/${map}.png`)
+
+  // 地图切换：清空状态，等新图加载完再 measure
+  useEffect(() => {
+    setImageLoaded(false)
+    setCanvasRect(null)
+    setMapImgRect(null)
+    setMapNatural(null)
+  }, [map, mapSrc])
+
+  // 加载地图原图尺寸（用于计算 aspectFit 后的 letterbox 内容盒子）
+  useEffect(() => {
+    let cancelled = false
+    Taro.getImageInfo({
+      src: mapSrc,
+      success: (info) => {
+        if (cancelled) return
+        if (info.width > 0 && info.height > 0) {
+          setMapNatural({ width: info.width, height: info.height })
+        }
+      },
+      fail: () => {
+        // 拿不到原图尺寸时 contentBox 会退化为 Image 元素区域，仍可工作
+      },
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [mapSrc])
+
+  // 测量 canvas + Image 的 boundingClientRect（page-relative）
+  const measureRects = () => {
+    const query = Taro.createSelectorQuery()
+    query.select('#minimap-canvas').boundingClientRect()
+    query.select('#minimap-map-img').boundingClientRect()
+    query.exec((results: any) => {
+      const canvas = results?.[0] as MinimapRect | null
+      const img = results?.[1] as MinimapRect | null
+      if (canvas && canvas.width > 0 && canvas.height > 0) setCanvasRect(canvas)
+      if (img && img.width > 0 && img.height > 0) setMapImgRect(img)
+    })
   }
 
+  // 监听 Image 加载完成和 canvas 尺寸变化
+  const handleImageLoad = () => {
+    setImageLoaded(true)
+    // 用 setTimeout 等 Image 元素 layout 完再测
+    setTimeout(measureRects, 0)
+  }
+
+  // aspectFit 下的实际可见内容盒子（去掉 letterbox）
+  const contentBox = (): { left: number; top: number; width: number; height: number } | null => {
+    const m = mapImgRect
+    if (!m || m.width <= 0 || m.height <= 0) return null
+    if (!mapNatural || mapNatural.width <= 0 || mapNatural.height <= 0) {
+      // 拿不到原图尺寸时退回为整个 Image 元素（1:1 minimap 时与 content 区域一致）
+      return { left: m.left, top: m.top, width: m.width, height: m.height }
+    }
+    const elAspect = m.width / m.height
+    const imgAspect = mapNatural.width / mapNatural.height
+    if (imgAspect > elAspect) {
+      // 图片更宽：左右填满，上下有 letterbox
+      const contentH = m.width / imgAspect
+      const contentTop = m.top + (m.height - contentH) / 2
+      return { left: m.left, top: contentTop, width: m.width, height: contentH }
+    }
+    // 图片更高：上下填满，左右有 letterbox
+    const contentW = m.height * imgAspect
+    const contentLeft = m.left + (m.width - contentW) / 2
+    return { left: contentLeft, top: m.top, width: contentW, height: m.height }
+  }
+
+  const clamp = (v: number) => Math.min(1, Math.max(0, v))
+
+  // 关键修复：统一用 pageX/pageY（page-relative），与 boundingClientRect 同坐标系
+  // 旧代码用 touch.x（element-relative）减 box.left（page-relative），坐标系混用导致坐标全错
+  const pickFromTouch = (event: any) => {
+    const touch = event?.touches?.[0] ?? event?.changedTouches?.[0]
+    if (!touch) return null
+    const box = contentBox()
+    if (!box) {
+      measureRects()
+      return null
+    }
+    const cx = touch.pageX ?? touch.clientX ?? 0
+    const cy = touch.pageY ?? touch.clientY ?? 0
+    if (cx === 0 && cy === 0) return null
+    return {
+      x: clamp((cx - box.left) / box.width),
+      y: clamp((cy - box.top) / box.height),
+    }
+  }
+
+  const writePoint = (key: CoordKey, point: { x: number; y: number }, advance = false) => {
+    onChange({ ...value, [key]: point })
+    if (advance && key === 'standing' && !hasLandingPoint(value)) {
+      setActivePoint('landing')
+    }
+  }
+
+  const handleTouchStart = (event: any) => {
+    const point = pickFromTouch(event)
+    if (!point) return
+    writePoint(activePoint, point, true)
+  }
+
+  const handleTouchMove = (event: any) => {
+    const point = pickFromTouch(event)
+    if (!point) return
+    writePoint(activePoint, point)
+  }
+
+  // marker 拖拽：marker 上的 onTouchStart stopPropagation，避免触发 canvas 的事件
+  const handleMarkerTouchStart = (key: CoordKey, event: any) => {
+    if (typeof event?.stopPropagation === 'function') event.stopPropagation()
+    setActivePoint(key)
+  }
+
+  const handleMarkerTouchMove = (key: CoordKey, event: any) => {
+    const point = pickFromTouch(event)
+    if (!point) return
+    writePoint(key, point)
+  }
+
+  const clearPoint = (key: CoordKey) => {
+    onChange({ ...value, [key]: { x: null, y: null } })
+    setActivePoint(key)
+  }
+
+  const hasStanding = value.standing.x != null && value.standing.y != null
+  const hasLanding = value.landing.x != null && value.landing.y != null
+
+  // 归一化坐标 → canvas 内 CSS 百分比位置（叠加 contentBox letterbox 偏移）
+  const pointStyle = (p: { x: number | null; y: number | null }) => {
+    if (p.x == null || p.y == null) return { display: 'none' as const }
+    const c = canvasRect
+    const box = contentBox()
+    if (!c || c.width <= 0 || !box) return { display: 'none' as const }
+    const left = (box.left - c.left + p.x * box.width) / c.width
+    const top = (box.top - c.top + p.y * box.height) / c.height
+    return { left: `${left * 100}%`, top: `${top * 100}%` }
+  }
+
+  const hint = !hasStanding
+    ? '在地图上点一下选站位。'
+    : !hasLanding
+    ? '再点一下地图选落点。'
+    : '拖动 marker 微调，或直接点地图重新标。'
+
   return (
-    <View className='coord-card'>
+    <View className='panel'>
       <View className='panel-head'>
-        <Text className='panel-title'>小地图坐标</Text>
-        <Text className='panel-desc'>用滑块手动标站位和落点，非必填。</Text>
+        <Text className='panel-title'>小地图标注</Text>
+        <Text className='panel-desc'>{getMapLabel(map)} · {hint}</Text>
       </View>
-      {(['standing', 'landing'] as CoordKey[]).map((key) => {
-        const point = value[key]
-        const enabled = point.x != null && point.y != null
-        return (
-          <View key={key} className='coord-row'>
-            <View className='coord-row__head'>
-              <Text className='coord-row__title'>{key === 'standing' ? '站位' : '落点'}</Text>
-              {enabled ? (
-                <Text className='coord-row__action' onClick={() => clearPoint(key)}>清除</Text>
-              ) : (
-                <Text className='coord-row__action' onClick={() => ensurePoint(key)}>开始标注</Text>
-              )}
+
+      <View className='minimap-picker__tabs'>
+        {(['standing', 'landing'] as CoordKey[]).map((key) => {
+          const active = activePoint === key
+          const hasIt = key === 'standing' ? hasStanding : hasLanding
+          return (
+            <View
+              key={key}
+              className={`minimap-picker__tab minimap-picker__tab--${key} ${active ? 'minimap-picker__tab--active' : ''}`}
+              onClick={() => setActivePoint(key)}
+            >
+              <Text>{key === 'standing' ? '标站位' : '标落点'}</Text>
+              {hasIt ? <Text className='minimap-picker__tab-dot'>·</Text> : null}
             </View>
-            {enabled ? (
-              <>
-                <View className='coord-slider'><Text>X</Text><Slider value={Math.round((point.x || 0) * 100)} min={0} max={100} activeColor='#ff4655' backgroundColor='rgba(255,255,255,0.14)' onChange={(event) => updatePoint(key, 'x', event.detail.value)} /></View>
-                <View className='coord-slider'><Text>Y</Text><Slider value={Math.round((point.y || 0) * 100)} min={0} max={100} activeColor='#ff4655' backgroundColor='rgba(255,255,255,0.14)' onChange={(event) => updatePoint(key, 'y', event.detail.value)} /></View>
-              </>
-            ) : <Text className='coord-row__empty'>未标注</Text>}
-          </View>
-        )
-      })}
+          )
+        })}
+      </View>
+
+      <View className='minimap-picker__canvas-wrap'>
+        <View
+          id='minimap-canvas'
+          className='minimap-picker__canvas'
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+        >
+          <Image
+            id='minimap-map-img'
+            className='minimap-picker__map-img'
+            src={mapSrc}
+            mode='aspectFit'
+            onLoad={handleImageLoad}
+            onError={() => setImageLoaded(true)}
+          />
+          <View className='minimap-picker__grid' />
+
+          {hasStanding ? (
+            <View
+              className='minimap-picker__marker minimap-picker__marker--standing'
+              style={pointStyle(value.standing)}
+              onTouchStart={(e) => handleMarkerTouchStart('standing', e)}
+              onTouchMove={(e) => handleMarkerTouchMove('standing', e)}
+            >
+              <View className={`minimap-picker__dot ${activePoint === 'standing' ? 'minimap-picker__dot--active' : ''}`} />
+              <Text className='minimap-picker__label'>站位</Text>
+            </View>
+          ) : null}
+
+          {hasLanding ? (
+            <View
+              className='minimap-picker__marker minimap-picker__marker--landing'
+              style={pointStyle(value.landing)}
+              onTouchStart={(e) => handleMarkerTouchStart('landing', e)}
+              onTouchMove={(e) => handleMarkerTouchMove('landing', e)}
+            >
+              <View className={`minimap-picker__dot ${activePoint === 'landing' ? 'minimap-picker__dot--active' : ''}`} />
+              <Text className='minimap-picker__label'>落点</Text>
+            </View>
+          ) : null}
+
+          {!hasStanding && !hasLanding ? (
+            <View className='minimap-picker__center-cross'>
+              <View className='minimap-picker__center-cross-x' />
+              <View className='minimap-picker__center-cross-y' />
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      <View className='minimap-picker__foot'>
+        <View className='minimap-picker__foot-item'>
+          <Text className='minimap-picker__foot-label minimap-picker__foot-label--standing'>站位</Text>
+          {hasStanding ? (
+            <Text className='minimap-picker__foot-val'>{(value.standing.x ?? 0).toFixed(3)}, {(value.standing.y ?? 0).toFixed(3)}</Text>
+          ) : <Text className='minimap-picker__foot-val'>未标注</Text>}
+          {hasStanding ? <Text className='minimap-picker__foot-clear' onClick={() => clearPoint('standing')}>清除</Text> : null}
+        </View>
+        <View className='minimap-picker__foot-item'>
+          <Text className='minimap-picker__foot-label minimap-picker__foot-label--landing'>落点</Text>
+          {hasLanding ? (
+            <Text className='minimap-picker__foot-val'>{(value.landing.x ?? 0).toFixed(3)}, {(value.landing.y ?? 0).toFixed(3)}</Text>
+          ) : <Text className='minimap-picker__foot-val'>未标注</Text>}
+          {hasLanding ? <Text className='minimap-picker__foot-clear' onClick={() => clearPoint('landing')}>清除</Text> : null}
+        </View>
+      </View>
     </View>
   )
+}
+
+function hasLandingPoint(value: Coords) {
+  return value.landing.x != null && value.landing.y != null
 }
 
 export default function ContributePage() {
@@ -161,6 +379,8 @@ export default function ContributePage() {
   const [submitting, setSubmitting] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [correctFromLineupId, setCorrectFromLineupId] = useState<number | null>(null)
+  const [annotatingStepId, setAnnotatingStepId] = useState<string | null>(null)
+  const annotatingStep = images.find((item) => item.id === annotatingStepId) ?? null
 
   useLoad(async () => {
     if (router.params.mode === 'video') setMode('video')
@@ -348,7 +568,7 @@ export default function ContributePage() {
           <BaseFields value={form} onChange={setForm} />
         </View>
 
-        <CoordinatePicker value={coords} onChange={setCoords} />
+        <MinimapPicker map={form.map} value={coords} onChange={setCoords} />
 
         {mode === 'image' ? (
           <View className='panel'>
@@ -370,7 +590,10 @@ export default function ContributePage() {
                     <View className='step-editor__body'>
                       <View className='step-editor__head'>
                         <Text className='step-editor__title'>步骤 {index + 1}</Text>
-                        <Text className='step-editor__delete' onClick={() => removeImage(item.id)}>删除</Text>
+                        <View className='step-editor__actions'>
+                          <Text className='step-editor__annotate' onClick={() => setAnnotatingStepId(item.id)}>标注</Text>
+                          <Text className='step-editor__delete' onClick={() => removeImage(item.id)}>删除</Text>
+                        </View>
                       </View>
                       <Textarea
                         className='textarea'
@@ -454,6 +677,21 @@ export default function ContributePage() {
           </View>
         )}
       </LoginGuard>
+
+      <ImageAnnotationEditor
+        imagePath={annotatingStep?.path ?? ''}
+        isOpen={annotatingStepId !== null}
+        onClose={() => setAnnotatingStepId(null)}
+        onSave={(annotatedPath) => {
+          if (!annotatingStepId) return
+          setImages((current) =>
+            current.map((item) =>
+              item.id === annotatingStepId ? { ...item, path: annotatedPath } : item,
+            ),
+          )
+          setAnnotatingStepId(null)
+        }}
+      />
     </View>
   )
 }

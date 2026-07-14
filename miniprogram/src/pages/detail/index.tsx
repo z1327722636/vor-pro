@@ -1,7 +1,8 @@
 import Taro, { useLoad, useRouter } from '@tarojs/taro'
 import { Image, Text, View } from '@tarojs/components'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
+import { ImagePreview } from '@/components/image-preview'
 import { LoginGuard } from '@/components/login-guard'
 import { resolveAssetUrl } from '@/services/api'
 import { getLineup } from '@/services/lineups'
@@ -27,6 +28,135 @@ function getSteps(lineup: Lineup): LineupStep[] {
   ].filter((item) => item.image_path || item.note)
 }
 
+type MinimapRect = { left: number; top: number; width: number; height: number }
+
+// 详情页缩略小地图：实测 Image 元素 rect + 原图 aspect，通用换算
+// 不再 hardcode 16:9 + 1:1 假设：任何 canvas / 图片比例都能正确落点
+function MinimapPreview({
+  map,
+  standingX,
+  standingY,
+  landingX,
+  landingY,
+}: {
+  map: string
+  standingX: number | null
+  standingY: number | null
+  landingX: number | null
+  landingY: number | null
+}) {
+  const [canvasRect, setCanvasRect] = useState<MinimapRect | null>(null)
+  const [mapImgRect, setMapImgRect] = useState<MinimapRect | null>(null)
+  const [mapNatural, setMapNatural] = useState<{ width: number; height: number } | null>(null)
+
+  const mapSrc = resolveAssetUrl(`/maps/${map}.png`)
+
+  useEffect(() => {
+    let cancelled = false
+    Taro.getImageInfo({
+      src: mapSrc,
+      success: (info) => {
+        if (cancelled) return
+        if (info.width > 0 && info.height > 0) {
+          setMapNatural({ width: info.width, height: info.height })
+        }
+      },
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [mapSrc])
+
+  const measure = () => {
+    const query = Taro.createSelectorQuery()
+    query.select('#detail-minimap-canvas').boundingClientRect()
+    query.select('#detail-minimap-image').boundingClientRect()
+    query.exec((results: any) => {
+      const canvas = results?.[0] as MinimapRect | null
+      const img = results?.[1] as MinimapRect | null
+      if (canvas && canvas.width > 0) setCanvasRect(canvas)
+      if (img && img.width > 0) setMapImgRect(img)
+    })
+  }
+
+  const handleImageLoad = () => {
+    // 等 Image 元素 layout 完再测
+    setTimeout(measure, 0)
+  }
+
+  // 计算 aspectFit 下的「地图实际可见」content box
+  // 1:1 minimap 放在 16:9 canvas → 横向留白、纵向填满，与 hardcode 公式一致
+  // 4:3 或其他比例也走通用公式
+  const contentBox = (): { left: number; top: number; width: number; height: number } | null => {
+    const m = mapImgRect
+    if (!m || m.width <= 0 || m.height <= 0) return null
+    if (!mapNatural || mapNatural.width <= 0 || mapNatural.height <= 0) {
+      return { left: m.left, top: m.top, width: m.width, height: m.height }
+    }
+    const elAspect = m.width / m.height
+    const imgAspect = mapNatural.width / mapNatural.height
+    if (imgAspect > elAspect) {
+      const contentH = m.width / imgAspect
+      return { left: m.left, top: m.top + (m.height - contentH) / 2, width: m.width, height: contentH }
+    }
+    const contentW = m.height * imgAspect
+    return { left: m.left + (m.width - contentW) / 2, top: m.top, width: contentW, height: m.height }
+  }
+
+  const hasStanding = standingX != null && standingY != null
+  const hasLanding = landingX != null && landingY != null
+
+  const pointStyle = (x: number, y: number) => {
+    const c = canvasRect
+    const box = contentBox()
+    if (!c || c.width <= 0 || !box) return { display: 'none' as const }
+    const left = (box.left - c.left + x * box.width) / c.width
+    const top = (box.top - c.top + y * box.height) / c.height
+    return { left: `${left * 100}%`, top: `${top * 100}%` }
+  }
+
+  return (
+    <View
+      id='detail-minimap-canvas'
+      className='detail-minimap__canvas'
+    >
+      <View
+        id='detail-minimap-image-wrap'
+        className='detail-minimap__image-wrap'
+      >
+        <Image
+          id='detail-minimap-image'
+          className='detail-minimap__image'
+          src={mapSrc}
+          mode='aspectFit'
+          onLoad={handleImageLoad}
+          onError={handleImageLoad}
+        />
+      </View>
+      <View className='detail-minimap__grid' />
+
+      {hasStanding ? (
+        <View
+          className='detail-minimap__marker detail-minimap__marker--standing'
+          style={pointStyle(standingX!, standingY!)}
+        >
+          <Text className='detail-minimap__marker-dot' />
+          <Text className='detail-minimap__marker-label detail-minimap__marker-label--standing'>站位</Text>
+        </View>
+      ) : null}
+      {hasLanding ? (
+        <View
+          className='detail-minimap__marker detail-minimap__marker--landing'
+          style={pointStyle(landingX!, landingY!)}
+        >
+          <Text className='detail-minimap__marker-dot' />
+          <Text className='detail-minimap__marker-label detail-minimap__marker-label--landing'>落点</Text>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
 export default function DetailPage() {
   const router = useRouter()
   const id = Number(router.params.id)
@@ -35,6 +165,7 @@ export default function DetailPage() {
   const [favorited, setFavorited] = useState(false)
   const [busy, setBusy] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null)
 
   const load = async () => {
     if (!id) return
@@ -107,33 +238,48 @@ export default function DetailPage() {
   const hasMinimap = lineup.minimap_x != null && lineup.minimap_y != null
   const hasLanding = lineup.landing_x != null && lineup.landing_y != null
 
+  const previewImages = steps.map((step) => ({
+    src: resolveAssetUrl(step.image_path || ""),
+    title: step.title,
+    description: step.note || "",
+  }))
+
   return (
     <View className='safe-page detail-page'>
-      {/* 1. 媒体主舞台：当前步骤的图 + 步骤切换器（沉浸式） */}
+      {/* 1. 大图区：无遮挡，图占据 60vh */}
       <View className='detail-stage'>
-        {current?.image_path ? (
-          <Image className='detail-stage__image' mode='aspectFill' src={resolveAssetUrl(current.image_path)} />
-        ) : (
-          <View className='detail-stage__placeholder'><Text>暂无步骤图</Text></View>
-        )}
+        <View className='detail-stage__img-wrapper'>
+          {current?.image_path ? (
+            <Image
+              className='detail-stage__image'
+              mode='aspectFill'
+              src={resolveAssetUrl(current.image_path)}
+              onClick={() => setPreviewIndex(currentStep)}
+            />
+          ) : (
+            <View className='detail-stage__placeholder'><Text>暂无步骤图</Text></View>
+          )}
+        </View>
         <View className='detail-stage__topbar'>
           <Text className='detail-stage__source'>{getSourceLabel(lineup.source_type)}</Text>
         </View>
-        {steps.length > 1 ? (
-          <View className='detail-stage__steps'>
-            {steps.map((step, index) => (
-              <View
-                key={`${step.order_index}-${index}`}
-                className={`detail-stage__step ${index === currentStep ? 'detail-stage__step--active' : ''}`}
-                onClick={() => setCurrentStep(index)}
-              >
-                <Text className='detail-stage__step-index'>{index + 1}</Text>
-                <Text className='detail-stage__step-title'>{step.title}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
       </View>
+
+      {/* 1b. 步骤切换器：图正下方独立区域，不叠在图上 */}
+      {steps.length > 1 ? (
+        <View className='detail-stage__steps'>
+          {steps.map((step, index) => (
+            <View
+              key={`${step.order_index}-${index}`}
+              className={`detail-stage__step ${index === currentStep ? 'detail-stage__step--active' : ''}`}
+              onClick={() => setCurrentStep(index)}
+            >
+              <Text className='detail-stage__step-index'>{index + 1}</Text>
+              <Text className='detail-stage__step-title'>{step.title}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {/* 2. 标题区：地图·特工（主锚点）+ chips 副信息 */}
       <View className='detail-title-block'>
@@ -161,23 +307,15 @@ export default function DetailPage() {
         <View className='detail-minimap'>
           <View className='detail-minimap__head'>
             <Text className='detail-minimap__title'>小地图定位</Text>
-            <Text className='detail-minimap__map'>{getMapLabel(lineup.map)}</Text>
+            <Text className='detail-minimap__map-name'>{getMapLabel(lineup.map)}</Text>
           </View>
-          <View className='detail-minimap__canvas'>
-            <View className='detail-minimap__grid' />
-            {hasMinimap ? (
-              <View className='detail-minimap__marker detail-minimap__marker--standing' style={{ left: `${lineup.minimap_x! * 100}%`, top: `${lineup.minimap_y! * 100}%` }}>
-                <Text className='detail-minimap__marker-dot' />
-                <Text className='detail-minimap__marker-label detail-minimap__marker-label--standing'>站位</Text>
-              </View>
-            ) : null}
-            {hasLanding ? (
-              <View className='detail-minimap__marker detail-minimap__marker--landing' style={{ left: `${lineup.landing_x! * 100}%`, top: `${lineup.landing_y! * 100}%` }}>
-                <Text className='detail-minimap__marker-dot' />
-                <Text className='detail-minimap__marker-label detail-minimap__marker-label--landing'>落点</Text>
-              </View>
-            ) : null}
-          </View>
+          <MinimapPreview
+            map={lineup.map}
+            standingX={lineup.minimap_x ?? null}
+            standingY={lineup.minimap_y ?? null}
+            landingX={lineup.landing_x ?? null}
+            landingY={lineup.landing_y ?? null}
+          />
         </View>
       ) : null}
 
@@ -209,6 +347,15 @@ export default function DetailPage() {
           </View>
         </LoginGuard>
       </View>
+
+      {/* 图片预览 */}
+      {previewIndex !== null ? (
+        <ImagePreview
+          images={previewImages}
+          index={previewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
+      ) : null}
     </View>
   )
 }

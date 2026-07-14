@@ -208,7 +208,6 @@ export function FramePicker({ videoUrl, value, onChange, sidePanelTop, videoPane
           <div className="mx-auto min-h-0 w-full max-w-5xl flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-valorant-panel/95 p-3">
             <ImageAnnotationEditor
               imageUrl={editingNode.previewUrl}
-              note={editingNode.note}
               annotations={editingNode.annotations}
               onChange={(annotations) => updateNode(editingNode.id, { annotations })}
             />

@@ -219,6 +219,17 @@ export default function UploadContributionPage() {
   const [videoError, setVideoError] = useState("");
   const [resolveState, setResolveState] = useState<ResolveState>({ status: "idle" });
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setLoginRedirect(`${window.location.pathname}${window.location.search}`);
+      router.replace("/login");
+      return;
+    }
+    setAuthReady(true);
+  }, [router]);
 
   useEffect(() => {
     return () => {
@@ -234,6 +245,10 @@ export default function UploadContributionPage() {
       return null;
     }
     return token;
+  }
+
+  if (!authReady) {
+    return <div className="min-h-[calc(100vh-4rem)]" />;
   }
 
   const activeDraft = videoDrafts.find((draft) => draft.id === activeDraftId) ?? videoDrafts[0];
@@ -626,7 +641,6 @@ export default function UploadContributionPage() {
                   <div className="hidden md:block">
                     <ImageAnnotationEditor
                       imageUrl={step.previewUrl}
-                      note={step.note}
                       annotations={step.annotations}
                       onChange={(annotations) => updateStepAnnotations(step.id, annotations)}
                     />
@@ -635,7 +649,7 @@ export default function UploadContributionPage() {
                       value={step.note}
                       onChange={(event) => updateStepNote(step.id, event.currentTarget.value)}
                       className="mt-3 min-h-28 w-full resize-y rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-valorant-text outline-none placeholder:text-valorant-muted focus:border-valorant-red"
-                      placeholder={`步骤 ${index + 1} 备注：会显示在图片左下角，并随图片一起保存`}
+                      placeholder={`步骤 ${index + 1} 备注：会作为步骤描述一起保存`}
                     />
                   </div>
                 </article>
@@ -819,7 +833,6 @@ export default function UploadContributionPage() {
           <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-valorant-panel/95 p-3">
             <ImageAnnotationEditor
               imageUrl={editingStep.previewUrl}
-              note={editingStep.note}
               annotations={editingStep.annotations}
               onChange={(annotations) => updateStepAnnotations(editingStep.id, annotations)}
             />
@@ -827,7 +840,7 @@ export default function UploadContributionPage() {
               value={editingStep.note}
               onChange={(event) => updateStepNote(editingStep.id, event.currentTarget.value)}
               className="mt-3 min-h-28 w-full resize-y rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-valorant-text outline-none placeholder:text-valorant-muted focus:border-valorant-red"
-              placeholder="写这张图的描述，会显示在图片左下角，并随图片一起保存"
+              placeholder="写这张图的描述，会作为步骤描述一起保存"
             />
           </div>
         </div>

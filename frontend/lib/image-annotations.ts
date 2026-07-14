@@ -90,58 +90,6 @@ function drawBox(context: CanvasRenderingContext2D, x1: number, y1: number, x2: 
   context.restore();
 }
 
-function splitTextIntoLines(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
-  const normalized = text.trim().replace(/\s+/g, " ");
-  if (!normalized) return [];
-
-  const lines: string[] = [];
-  let current = "";
-  for (const char of normalized) {
-    const next = `${current}${char}`;
-    if (context.measureText(next).width > maxWidth && current) {
-      lines.push(current);
-      current = char.trimStart();
-    } else {
-      current = next;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.slice(0, 4);
-}
-
-function drawNote(context: CanvasRenderingContext2D, note: string, canvasWidth: number, canvasHeight: number) {
-  const text = note.trim();
-  if (!text) return;
-
-  const fontSize = Math.max(22, Math.round(canvasWidth * 0.028));
-  const padding = Math.round(fontSize * 0.65);
-  const lineHeight = Math.round(fontSize * 1.45);
-  const maxWidth = Math.min(canvasWidth * 0.84, 860);
-  context.font = `700 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-  const lines = splitTextIntoLines(context, text, maxWidth - padding * 2);
-  if (lines.length === 0) return;
-
-  const boxWidth = Math.min(maxWidth, Math.max(...lines.map((line) => context.measureText(line).width)) + padding * 2);
-  const boxHeight = lines.length * lineHeight + padding * 2;
-  const x = Math.round(canvasWidth * 0.035);
-  const y = Math.round(canvasHeight - boxHeight - canvasHeight * 0.04);
-
-  context.save();
-  context.fillStyle = "rgba(10, 14, 19, 0.82)";
-  context.strokeStyle = "rgba(255, 70, 85, 0.86)";
-  context.lineWidth = Math.max(3, Math.round(fontSize * 0.12));
-  context.beginPath();
-  context.roundRect(x, y, boxWidth, boxHeight, Math.round(fontSize * 0.55));
-  context.fill();
-  context.stroke();
-
-  context.fillStyle = "#ECE8E1";
-  lines.forEach((line, index) => {
-    context.fillText(line, x + padding, y + padding + fontSize + index * lineHeight);
-  });
-  context.restore();
-}
-
 export async function renderAnnotatedImageFile(params: {
   sourceUrl: string;
   fileName: string;
@@ -174,7 +122,6 @@ export async function renderAnnotatedImageFile(params: {
     if (annotation.type === "arrow") drawArrow(context, x1, y1, x2, y2, color, strokeWidth, arrowHeadLength);
     else drawBox(context, x1, y1, x2, y2, color, strokeWidth);
   }
-  drawNote(context, params.note ?? "", width, height);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((result) => {

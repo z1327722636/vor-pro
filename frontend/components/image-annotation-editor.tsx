@@ -6,7 +6,6 @@ import { type ImageAnnotation, type ImageAnnotationKind, normalizeAnnotation } f
 
 type ImageAnnotationEditorProps = {
   imageUrl?: string;
-  note?: string;
   annotations: ImageAnnotation[];
   onChange: (annotations: ImageAnnotation[]) => void;
   className?: string;
@@ -112,7 +111,7 @@ function renderAnnotation(annotation: ImageAnnotation, isDraft = false) {
   );
 }
 
-export function ImageAnnotationEditor({ imageUrl, note = "", annotations, onChange, className = "" }: ImageAnnotationEditorProps) {
+export function ImageAnnotationEditor({ imageUrl, annotations, onChange, className = "" }: ImageAnnotationEditorProps) {
   const descriptionId = useId();
   const [tool, setTool] = useState<ImageAnnotationKind>("arrow");
   const [color, setColor] = useState(COLORS[0]);
@@ -235,15 +234,10 @@ export function ImageAnnotationEditor({ imageUrl, note = "", annotations, onChan
               {annotations.map((annotation) => renderAnnotation(annotation))}
               {draft ? renderAnnotation(draft, true) : null}
             </svg>
-            {note.trim() ? (
-              <div className="pointer-events-none absolute bottom-3 left-3 max-w-[86%] rounded-xl border border-valorant-red/70 bg-black/75 px-3 py-2 text-xs font-semibold leading-5 text-valorant-text shadow-lg sm:text-sm">
-                {note.trim()}
-              </div>
-            ) : null}
           </>
         ) : (
           <div className="flex aspect-video items-center justify-center px-4 text-center text-sm text-valorant-muted">
-            选择图片后可在这里拖拽画箭头或框选区域，备注会自动压到图片左下角。
+            选择图片后可在这里拖拽画箭头或框选区域，备注会作为步骤描述单独保存。
           </div>
         )}
       </div>
