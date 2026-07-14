@@ -34,14 +34,23 @@ app.mount("/frames", StaticFiles(directory=FRAME_ROOT), name="frames")
 if MAPS_ROOT.is_dir():
     app.mount("/maps", StaticFiles(directory=MAPS_ROOT), name="maps")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        settings.frontend_origin,
+allowed_origins = [
+    origin.strip()
+    for origin in settings.frontend_origin.split(",")
+    if origin.strip()
+]
+allowed_origins.extend(
+    [
         "http://localhost:2367",
         "http://127.0.0.1:2367",
         "http://0.0.0.0:2367",
-    ],
+    ]
+)
+allowed_origins = list(dict.fromkeys(allowed_origins))
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
     allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],

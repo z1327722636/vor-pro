@@ -211,6 +211,10 @@
   aspect-ratio: 16 / 9;
   width: 100%;
   overflow: hidden;
+  /* 视觉兜底：地图图加载失败时仍显示底色 */
+  background:
+    radial-gradient(circle at center, rgba(148, 210, 255, 0.08), transparent 58%),
+    #0a1322;
 }
 
 .detail-minimap__image-wrap {
@@ -226,14 +230,10 @@
 }
 
 .detail-minimap__grid {
-  /* 视觉兜底：地图图加载失败时仍显示网格和边线 */
   position: absolute;
   inset: 0;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    radial-gradient(circle at center, rgba(148, 210, 255, 0.08), transparent 58%),
-    #0a1322;
   pointer-events: none;
 }
 

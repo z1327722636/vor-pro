@@ -50,12 +50,12 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
   }, [hasNext, resetView]);
 
   const zoomIn = useCallback(() => {
-    setScale((s) => clampScale(s * 1.2));
+    setScale((s) => clampScale(s * 1.1));
   }, []);
 
   const zoomOut = useCallback(() => {
     setScale((s) => {
-      const ns = clampScale(s / 1.2);
+      const ns = clampScale(s / 1.1);
       if (ns <= 1.01) {
         setPan({ x: 0, y: 0 });
         return 1;
@@ -132,20 +132,20 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/92 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#05070d]/95 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
       {/* 顶部工具栏 */}
       <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-4 py-4">
-        <span className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold tracking-wider text-white/70 backdrop-blur">
+        <span className="rounded-lg border border-white/15 bg-[#05070d]/90 px-3 py-1.5 text-xs font-bold tracking-wider text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
           {index + 1} / {total}{isZoomed ? ` · ${Math.round(scale * 100)}%` : ""}
         </span>
 
         <div className="flex items-center gap-2">
           {/* 缩小 */}
           <button
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white disabled:opacity-30"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#05070d]/90 text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-colors hover:bg-[#111827] disabled:opacity-40"
             onClick={zoomOut}
             disabled={!isZoomed}
             aria-label="缩小"
@@ -159,7 +159,7 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
 
           {/* 放大 */}
           <button
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white disabled:opacity-30"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#05070d]/90 text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-colors hover:bg-[#111827] disabled:opacity-40"
             onClick={zoomIn}
             disabled={scale >= 5}
             aria-label="放大"
@@ -173,7 +173,7 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
 
           {/* 1:1 还原 */}
           <button
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white disabled:opacity-30"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#05070d]/90 text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-colors hover:bg-[#111827] disabled:opacity-40"
             onClick={resetView}
             disabled={!isZoomed}
             aria-label="还原"
@@ -185,7 +185,7 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
 
           {/* 关闭 */}
           <button
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-[#05070d]/90 text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-colors hover:bg-[#111827]"
             onClick={onClose}
             aria-label="关闭预览"
           >
@@ -196,9 +196,9 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
         </div>
       </div>
 
-      {/* 图片区域 - 缩放时切换到"铺满屏幕"模式，scale 从铺满状态向外扩张 */}
+      {/* 图片区域 - 用整屏作为缩放画布，按钮和描述浮在上层 */}
       <div
-        className={`flex flex-1 items-center justify-center overflow-hidden px-4 py-16 ${isZoomed ? "cursor-grab" : "cursor-default"} ${dragging ? "cursor-grabbing" : ""}`}
+        className={`absolute inset-0 z-0 flex items-center justify-center overflow-hidden ${isZoomed ? "cursor-grab" : "cursor-default"} ${dragging ? "cursor-grabbing" : ""}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -206,11 +206,7 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
         <img
           src={current.src}
           alt={current.title}
-          className={
-            isZoomed
-              ? "h-full w-full object-cover select-none"
-              : "max-h-[calc(100vh-180px)] max-w-full object-contain select-none"
-          }
+          className="max-h-[calc(100vh-180px)] max-w-[90vw] object-contain select-none"
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
             transformOrigin: "center center",
@@ -222,24 +218,20 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
       {/* 底部描述 */}
       <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col items-center px-4 pb-6">
         {(current.title || current.description) ? (
-          <div className="mb-3 max-w-lg rounded-xl border border-white/10 bg-white/5 px-5 py-1 text-center backdrop-blur">
-           
+          <div className="mb-3 max-w-xl rounded-xl border border-white/25 bg-[#05070d] px-5 py-2 text-center shadow-[0_12px_36px_rgba(0,0,0,0.65)]">
             {current.description ? (
-              <p className={`text-sm leading-relaxed text-white/55 `}>
+              <p className="text-sm font-bold leading-relaxed text-white">
                 {current.description}
               </p>
             ) : null}
           </div>
         ) : null}
-        <p className="text-[11px] text-white/25">
-          ← → 切换 · ± 缩放 · 拖拽平移 · 1:1 还原 · Esc 关闭
-        </p>
       </div>
 
       {/* 上一张 */}
       {hasPrev ? (
         <button
-          className="absolute left-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white/80 backdrop-blur transition-colors hover:bg-white/20 hover:text-white"
+          className="absolute left-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#05070d]/85 text-white shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur transition-colors hover:bg-[#111827]"
           onClick={(e) => { e.stopPropagation(); goPrev(); }}
           aria-label="上一张"
         >
@@ -252,7 +244,7 @@ export function ImageLightbox({ images, index: initialIndex, onClose }: ImageLig
       {/* 下一张 */}
       {hasNext ? (
         <button
-          className="absolute right-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white/80 backdrop-blur transition-colors hover:bg-white/20 hover:text-white"
+          className="absolute right-3 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#05070d]/85 text-white shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur transition-colors hover:bg-[#111827]"
           onClick={(e) => { e.stopPropagation(); goNext(); }}
           aria-label="下一张"
         >

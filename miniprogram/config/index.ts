@@ -19,7 +19,11 @@ export default defineConfig(async (merge) => {
       '@': path.resolve(__dirname, '..', 'src')
     },
     defineConstants: {
-      'process.env.TARO_APP_API_BASE_URL': JSON.stringify(process.env.TARO_APP_API_BASE_URL || 'http://localhost:8000/api')
+      // WeChat Mini Program <image> rejects http:// sources, so the dev
+      // fallback must point at the HTTPS backend (scripts/dev-backend-https.sh).
+      'process.env.TARO_APP_API_BASE_URL': JSON.stringify(
+        process.env.TARO_APP_API_BASE_URL || 'https://localhost:8443/api'
+      )
     },
     mini: {
       postcss: {

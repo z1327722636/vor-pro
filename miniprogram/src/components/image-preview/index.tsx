@@ -86,7 +86,7 @@ export function ImagePreview({ images, index: initialIndex, onClose }: ImagePrev
   }
 
   return (
-    <View className='image-preview'>
+    <View className='image-preview' catchMove>
       {/* 顶部工具栏 */}
       <View className='image-preview__toolbar'>
         <Text className='image-preview__counter'>
@@ -133,7 +133,7 @@ export function ImagePreview({ images, index: initialIndex, onClose }: ImagePrev
           >
             <Image
               className='image-preview__image'
-              mode={isZoomed ? 'aspectFill' : 'aspectFit'}
+              mode='aspectFit'
               src={current.src}
             />
           </View>
