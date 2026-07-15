@@ -15,6 +15,7 @@ coverage/
 # Env
 .env
 .env.local
+!.env.example
 
 # Storage
 storage/
@@ -27,7 +28,14 @@ redis-data/
 
 # Local CodeBuddy/runtime artifacts
 .codebuddy/plans/
+.codebuddy/teams/
 .tmp-*
+.cloudbase-build/
+
+# ML artifacts (prevent venv/pycache from being committed)
+ml/.venv/
+ml/**/.venv/
+ml/**/__pycache__/
 
 # Local dev TLS cert (regenerate with backend/scripts/generate-dev-cert.sh)
 backend/certs/
