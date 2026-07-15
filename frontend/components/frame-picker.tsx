@@ -142,7 +142,7 @@ export function FramePicker({ videoUrl, value, onChange, sidePanelTop, videoPane
 
         {value.length === 0 ? (
           <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-5 text-sm text-valorant-muted">
-            还没有节点。播放视频并停在需要的画面，点击“添加当前帧”。
+            还没有节点。播放视频并停在需要的画面，点击「添加当前帧」。
           </div>
         ) : (
           <div className="flex max-h-[55vh] flex-col gap-3 overflow-y-auto pr-1 lg:max-h-[360px]">

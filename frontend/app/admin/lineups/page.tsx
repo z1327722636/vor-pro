@@ -491,7 +491,7 @@ export default function AdminLineupsPage() {
         <section className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-valorant-panel p-8 text-center">
           <h2 className="text-2xl font-bold text-valorant-text">未选择 Lineup</h2>
           <p className="mt-3 max-w-md text-sm leading-6 text-valorant-muted">
-            左侧选择一条 Lineup 才会显示编辑内容；需要新增时再点击左上角“新建”。删除完后这里不会再自动保留旧内容。
+            左侧选择一条 Lineup 才会显示编辑内容；需要新增时再点击左上角「新建」。删除完后这里不会再自动保留旧内容。
           </p>
           {error ? <p className="mt-5 rounded-xl border border-valorant-red/40 bg-valorant-red/10 px-4 py-3 text-sm text-valorant-text">{error}</p> : null}
         </section>

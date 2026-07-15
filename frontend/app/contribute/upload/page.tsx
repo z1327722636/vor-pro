@@ -677,7 +677,7 @@ export default function UploadContributionPage() {
             <div>
               <h2 className="text-xl font-bold text-valorant-text">视频解析关键帧</h2>
               <p className="mt-1 text-sm text-valorant-muted">
-                贴入 B 站等视频页 URL，点击"解析视频"等待后端下载完成；播放器就绪后按顺序添加任意数量的帧节点。
+                贴入 B 站等视频页 URL，点击「解析视频」等待后端下载完成；播放器就绪后按顺序添加任意数量的帧节点。
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -716,7 +716,7 @@ export default function UploadContributionPage() {
             )}
             {resolveState.status === "ready" && (
               <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-                视频已就绪，暂停到目标画面后点"添加当前帧"{resolveState.title ? <span className="mt-1 block line-clamp-1 text-xs text-emerald-200/80">{resolveState.title}</span> : null}
+                视频已就绪，暂停到目标画面后点「添加当前帧」{resolveState.title ? <span className="mt-1 block line-clamp-1 text-xs text-emerald-200/80">{resolveState.title}</span> : null}
               </p>
             )}
 
