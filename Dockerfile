@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/backend
 
-WORKDIR /app
+WORKDIR /app/backend
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg curl build-essential \
