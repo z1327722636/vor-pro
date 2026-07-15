@@ -15,4 +15,4 @@ COPY frontend/public/assets/valorant/maps /app/frontend/public/assets/valorant/m
 
 RUN pip install --no-cache-dir /app/backend
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "alembic upgrade head 2>&1 || echo 'ALEMBIC FAILED, continuing...'; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
