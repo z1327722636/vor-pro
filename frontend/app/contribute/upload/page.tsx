@@ -29,6 +29,23 @@ type ResolveState =
   | { status: "ready"; playableUrl: string; title?: string | null }
   | { status: "error"; message: string };
 
+type BiliSearchItem = {
+  bvid: string;
+  title: string;
+  cover: string;
+  author: string;
+  duration_seconds: number;
+  play: number;
+  pubdate: number;
+  url: string;
+};
+
+type SearchState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "ready"; items: BiliSearchItem[] }
+  | { status: "error"; message: string };
+
 type SubmitState =
   | { status: "idle" }
   | { status: "submitting"; message: string }
@@ -191,6 +208,37 @@ function hasDuplicateTimestamps(nodes: FrameNode[]) {
   return new Set(nodes.map((node) => node.timestampMs)).size !== nodes.length;
 }
 
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function formatPlayCount(count: number): string {
+  if (count >= 10000) return `${(count / 10000).toFixed(1)}万`;
+  return String(count);
+}
+
+function proxiedCoverUrl(cover: string): string {
+  if (!cover) return "";
+  // B 站图 CDN 有防盗链，走后端代理带正确 Referer
+  if (/^https?:\/\//i.test(cover)) {
+    const encoded = encodeURIComponent(cover);
+    return `${API_BASE_URL}/api/proxy/image?url=${encoded}`;
+  }
+  return cover;
+}
+
+function extractUrlFromText(text: string): string {
+  // B 站 App 分享出来的文本是一大段描述 + URL + 尾巴，
+  // 用户经常整段粘贴。从文本里提取第一个 http(s) URL，去掉尾部标点。
+  const match = text.match(/https?:\/\/[^\s<>"']+/);
+  if (!match) return text.trim();
+  return match[0].replace(/[)\].};:,!?>]+$/, "");
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -219,6 +267,8 @@ function UploadContributionContent() {
   const [videoError, setVideoError] = useState("");
   const [resolveState, setResolveState] = useState<ResolveState>({ status: "idle" });
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle" });
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchState, setSearchState] = useState<SearchState>({ status: "idle" });
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
@@ -389,13 +439,18 @@ function UploadContributionContent() {
     }
   }
 
-  async function resolveVideo() {
+  async function resolveVideo(urlOverride?: string) {
     const token = getAuthToken();
     if (!token) return;
-    const trimmed = videoUrl.trim();
+    const raw = (urlOverride ?? videoUrl).trim();
+    const trimmed = extractUrlFromText(raw);
     if (!trimmed) {
       setResolveState({ status: "error", message: "请先输入视频 URL" });
       return;
+    }
+    // 用户粘贴整段分享文本时，提取出 URL 后同步回输入框
+    if (trimmed !== (urlOverride ?? videoUrl)) {
+      setVideoUrl(trimmed);
     }
     clearLineupPreview();
     setResolveState({ status: "loading" });
@@ -434,6 +489,46 @@ function UploadContributionContent() {
         message: `解析请求异常：${error instanceof Error ? error.message : String(error)}`
       });
     }
+  }
+
+  async function searchBilibili(event?: FormEvent) {
+    event?.preventDefault();
+    const token = getAuthToken();
+    if (!token) return;
+    const keyword = searchKeyword.trim();
+    if (!keyword) {
+      setSearchState({ status: "error", message: "请输入搜索关键词" });
+      return;
+    }
+    setSearchState({ status: "loading" });
+    try {
+      const params = new URLSearchParams({ keyword, page: "1" });
+      const response = await fetch(`${API_BASE_URL}/api/manual/bilibili/search?${params}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const detail = await response
+          .json()
+          .then((data) => (data && typeof data.detail === "string" ? data.detail : ""))
+          .catch(() => "");
+        setSearchState({ status: "error", message: detail || `搜索失败（HTTP ${response.status}）` });
+        return;
+      }
+      const data = (await response.json()) as { items: BiliSearchItem[] };
+      setSearchState({ status: "ready", items: data.items });
+    } catch (error) {
+      setSearchState({
+        status: "error",
+        message: `搜索请求异常：${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  }
+
+  function selectSearchResult(item: BiliSearchItem) {
+    setVideoUrl(item.url);
+    clearLineupPreview();
+    setResolveState({ status: "idle" });
+    resolveVideo(item.url);
   }
 
   async function submitVideoFrames(event: FormEvent<HTMLFormElement>) {
@@ -489,7 +584,7 @@ function UploadContributionContent() {
     }
 
     const payload = {
-      source_url: videoUrl || null,
+      source_url: extractUrlFromText(videoUrl) || null,
       timestamps: buildFrameTimestamps(nodes),
       form: {
         ...activeDraft.form,
@@ -677,9 +772,76 @@ function UploadContributionContent() {
             <div>
               <h2 className="text-xl font-bold text-valorant-text">视频解析关键帧</h2>
               <p className="mt-1 text-sm text-valorant-muted">
-                贴入 B 站等视频页 URL，点击「解析视频」等待后端下载完成；播放器就绪后按顺序添加任意数量的帧节点。
+                关键词搜索 B 站视频直接选，或贴入 B 站视频页 URL；解析完成后在播放器里按顺序添加帧节点。
               </p>
             </div>
+            {!correctFromLineupId && (
+              <section className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-valorant-text">搜索 B 站视频</h3>
+                  <span className="text-xs text-valorant-muted">搜到后点击直接解析</span>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    value={searchKeyword}
+                    onChange={(event) => setSearchKeyword(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void searchBilibili();
+                      }
+                    }}
+                    className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-valorant-text outline-none placeholder:text-valorant-muted focus:border-valorant-red"
+                    placeholder="输入关键词，如 隐世修所 保安 阳光"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void searchBilibili()}
+                    disabled={searchState.status === "loading"}
+                    className="shrink-0 cursor-pointer rounded-xl border border-valorant-blue/40 px-4 py-2.5 text-sm font-bold text-valorant-blue transition hover:shadow-blueNeon disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {searchState.status === "loading" ? "搜索中…" : "搜索"}
+                  </button>
+                </div>
+                {searchState.status === "loading" && (
+                  <p className="mt-2 text-xs text-valorant-blue">正在搜索…</p>
+                )}
+                {searchState.status === "error" && (
+                  <p className="mt-2 text-xs text-valorant-red">{searchState.message}</p>
+                )}
+                {searchState.status === "ready" && (
+                  <div className="mt-2 flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
+                    {searchState.items.length === 0 ? (
+                      <p className="text-xs text-valorant-muted">没有搜到相关视频</p>
+                    ) : (
+                      searchState.items.map((item) => (
+                        <button
+                          key={item.bvid}
+                          type="button"
+                          onClick={() => selectSearchResult(item)}
+                          className="flex cursor-pointer gap-3 rounded-xl border border-white/10 bg-black/30 p-2 text-left transition hover:border-valorant-red/50 hover:bg-valorant-red/5"
+                        >
+                          <img
+                            src={proxiedCoverUrl(item.cover)}
+                            alt={item.title}
+                            className="h-14 w-24 shrink-0 rounded-lg object-cover"
+                            loading="lazy"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-xs font-semibold text-valorant-text">{item.title}</p>
+                            <p className="mt-1 text-xs text-valorant-muted">{item.author}</p>
+                            <div className="mt-1 flex gap-3 text-xs text-valorant-muted">
+                              <span>{formatDuration(item.duration_seconds)}</span>
+                              <span>{formatPlayCount(item.play)} 播放</span>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 value={videoUrl}
@@ -689,13 +851,13 @@ function UploadContributionContent() {
                   if (resolveState.status !== "idle") setResolveState({ status: "idle" });
                 }}
                 className="flex-1 rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-valorant-text outline-none placeholder:text-valorant-muted"
-                placeholder="视频 URL，例如 https://www.bilibili.com/video/BVxxxx"
+                placeholder="B 站视频页 URL，如 https://www.bilibili.com/video/BVxxxx"
                 disabled={!!correctFromLineupId}
               />
               {!correctFromLineupId && (
                 <button
                   type="button"
-                  onClick={resolveVideo}
+                  onClick={() => resolveVideo()}
                   disabled={resolveState.status === "loading"}
                   className="shrink-0 cursor-pointer rounded-xl border border-valorant-blue/40 px-5 py-3 text-sm font-bold text-valorant-blue transition hover:shadow-blueNeon disabled:cursor-not-allowed disabled:opacity-50"
                 >

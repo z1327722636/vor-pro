@@ -1,7 +1,7 @@
 """
 External video resolver.
 
-把 B 站/抖音之类的视频页 URL 解析为可在前端 <video> 直接播放的本地直链 mp4。
+把 B 站之类的视频页 URL 解析为可在前端 <video> 直接播放的本地直链 mp4。
 策略：用 yt-dlp 把视频拉到 storage/uploads/external_videos/，对外通过
 FastAPI 已挂载的 /uploads 静态路由暴露。
 
@@ -45,6 +45,11 @@ class ResolvedVideo:
 _BVID_RE = re.compile(r"(BV[0-9A-Za-z]{10})")
 _PLAYABLE_SUFFIXES = {".mp4", ".webm", ".mkv", ".m4v", ".mov"}
 _BLOCKED_FIRST_OCTETS = {9, 10, 11, 21, 30}
+
+_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
 
 
 def _is_blocked_ip(address: str) -> bool:
@@ -129,6 +134,17 @@ def _build_cookie_file(cache_key: str) -> Path | None:
     return cookies_path
 
 
+def _platform_headers(source_url: str) -> dict[str, str]:
+    """按来源域名动态设置 Referer。"""
+    parsed = urlparse(source_url)
+    host = (parsed.hostname or "").strip().lower().rstrip(".")
+    if host in {"bilibili.com", "www.bilibili.com", "m.bilibili.com", "b23.tv"} or host.endswith(".bilibili.com"):
+        referer = "https://www.bilibili.com"
+    else:
+        referer = f"https://{host}/" if host else "https://www.bilibili.com"
+    return {"Referer": referer, "User-Agent": _UA}
+
+
 def _resolve_blocking(source_url: str) -> ResolvedVideo:
     """yt-dlp 是同步阻塞库，调用方用 to_thread 包一层。"""
     try:
@@ -161,14 +177,7 @@ def _resolve_blocking(source_url: str) -> ResolvedVideo:
         "noprogress": True,
         "noplaylist": True,
         "concurrent_fragment_downloads": 4,
-        # B 站 referer 校验
-        "http_headers": {
-            "Referer": "https://www.bilibili.com",
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-        },
+        "http_headers": _platform_headers(source_url),
     }
     if cookie_file is not None:
         ydl_opts["cookiefile"] = str(cookie_file)

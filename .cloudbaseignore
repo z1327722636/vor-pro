@@ -1,0 +1,34 @@
+# 排除不需要的目录和文件（backend/ 不能排除，后端部署需要）
+miniprogram/
+ml/
+scripts/
+docker/
+storage/
+.codebuddy/
+.git/
+.cloudbase-build/
+
+# 本地依赖和构建产物
+node_modules/
+.next/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# 运行数据
+minio-data/
+postgres-data/
+redis-data/
+
+# 环境配置
+.env
+.env.local
+
+# 其他
+*.md
+.vscode/
+.idea/

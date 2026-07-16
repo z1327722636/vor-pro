@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, auth, lineups, manual, social, videos
+from app.api import admin, auth, lineups, manual, proxy, social, videos
 from app.config import get_settings
 from app.logging import configure_logging
 from app.services.admin_seed import ensure_admin_account
@@ -51,7 +51,7 @@ allowed_origins = list(dict.fromkeys(allowed_origins))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$|^https://vor-pro-web-[0-9-]+\.sh\.run\.tcloudbase\.com$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,6 +63,7 @@ app.include_router(lineups.router, prefix="/api/lineups", tags=["lineups"])
 app.include_router(manual.router, prefix="/api", tags=["manual"])
 app.include_router(social.router, prefix="/api/lineups", tags=["social"])
 app.include_router(videos.router, prefix="/api/videos", tags=["videos"])
+app.include_router(proxy.router, prefix="/api", tags=["proxy"])
 
 
 @app.get("/healthz")

@@ -67,3 +67,18 @@ class CorrectionSessionResponse(BaseModel):
     video_url: str | None
     original_timestamps: FrameTimestamps
     original_form: ManualLineupForm
+
+
+class BilibiliSearchItem(BaseModel):
+    bvid: str
+    title: str
+    cover: str
+    author: str
+    duration_seconds: int
+    play: int
+    pubdate: int
+    url: str
+
+
+class BilibiliSearchResponse(BaseModel):
+    items: list[BilibiliSearchItem]

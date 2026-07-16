@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 
 from app.crud.lineups import get_lineup
 from app.deps import CurrentUser, DbSession
@@ -13,6 +13,8 @@ from app.enums import LineupSource, MapName, Side, ThrowType
 from app.models.lineup import Lineup
 from app.schemas.lineup import LineupResponse, lineup_response
 from app.schemas.manual import (
+    BilibiliSearchItem,
+    BilibiliSearchResponse,
     CorrectionSessionResponse,
     ExternalVideoResolveRequest,
     ExternalVideoResolveResponse,
@@ -21,6 +23,7 @@ from app.schemas.manual import (
     ManualLineupForm,
     VideoFrameSubmit,
 )
+from app.services.bilibili_search import search_bilibili_videos
 from app.services.manual_service import (
     UPLOAD_ROOT,
     create_manual_lineup_with_steps,
@@ -295,6 +298,37 @@ async def manual_upload(
     return lineup_response(lineup, can_edit=True)
 
 
+# ─── B 站视频搜索 ────────────────────────────────────────────
+
+@router.get("/manual/bilibili/search", response_model=BilibiliSearchResponse)
+async def search_bilibili(
+    current_user: CurrentUser,
+    keyword: str = Query(min_length=1, max_length=100),
+    page: int = Query(default=1, ge=1, le=50),
+) -> BilibiliSearchResponse:
+    """关键词搜索 B 站视频，返回精简列表供前端选择。"""
+    _ = current_user
+    try:
+        items = await search_bilibili_videos(keyword, page)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return BilibiliSearchResponse(
+        items=[
+            BilibiliSearchItem(
+                bvid=item.bvid,
+                title=item.title,
+                cover=item.cover,
+                author=item.author,
+                duration_seconds=item.duration_seconds,
+                play=item.play,
+                pubdate=item.pubdate,
+                url=item.url,
+            )
+            for item in items
+        ]
+    )
+
+
 # ─── 视频解析（手动选帧）─────────────────────────────────────
 
 @router.post("/manual/external-video/resolve", response_model=ExternalVideoResolveResponse)
@@ -302,7 +336,7 @@ async def resolve_external_video_endpoint(
     payload: ExternalVideoResolveRequest,
     current_user: CurrentUser,
 ) -> ExternalVideoResolveResponse:
-    """把 B 站 / 抖音等视频页 URL 解析成站内可播放的本地直链。"""
+    """把 B 站等视频页 URL 解析成站内可播放的本地直链。"""
     _ = current_user
     try:
         resolved = await resolve_external_video(payload.source_url)
