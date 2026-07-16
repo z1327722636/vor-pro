@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { FramePicker, type FrameNode } from "@/components/frame-picker";
 import { ImageAnnotationEditor } from "@/components/image-annotation-editor";
 import { defaultLineupBaseValue, LineupBaseFields, type LineupBaseValue } from "@/components/lineup-form";
@@ -200,7 +200,7 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export default function UploadContributionPage() {
+function UploadContributionContent() {
   const router = useRouter();
   const search = useSearchParams();
   const initialVideoUrl = search.get("videoUrl") ?? "";
@@ -846,5 +846,13 @@ export default function UploadContributionPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function UploadContributionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950" />}>
+      <UploadContributionContent />
+    </Suspense>
   );
 }
