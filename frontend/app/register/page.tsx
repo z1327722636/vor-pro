@@ -16,7 +16,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (getToken()) {
-      router.replace("/account");
+      router.replace(consumeLoginRedirect() as Route);
       return;
     }
 

@@ -30,7 +30,7 @@ export function setLoginRedirect(path: string): void {
   window.sessionStorage.setItem(LOGIN_REDIRECT_KEY, path);
 }
 
-export function consumeLoginRedirect(fallback = "/lineups"): string {
+export function consumeLoginRedirect(fallback = "/"): string {
   if (typeof window === "undefined") return fallback;
   const path = window.sessionStorage.getItem(LOGIN_REDIRECT_KEY);
   window.sessionStorage.removeItem(LOGIN_REDIRECT_KEY);

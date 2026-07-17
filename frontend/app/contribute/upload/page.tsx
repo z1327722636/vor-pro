@@ -504,7 +504,8 @@ function UploadContributionContent() {
     try {
       const params = new URLSearchParams({ keyword, page: "1" });
       const response = await fetch(`${API_BASE_URL}/api/manual/bilibili/search?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store"
       });
       if (!response.ok) {
         const detail = await response
